@@ -1609,27 +1609,84 @@ function renderSystem(host) {
         }
       }
 
-      // ── Methode 3: Data-URL (Android WebView / Median) ──
-      // Blob-URLs und Object-URLs werden in Median blockiert.
-      // Data-URLs direkt im href funktionieren zuverlässig.
+      // ── Methode 3: JSONBin Upload → median.share.downloadFile (Android/Median) ──
+      // Median kann keine lokalen Blobs herunterladen – die Datei muss auf einem
+      // öffentlichen Server liegen. JSONBin.io hostet sie kurz, dann lädt Median sie
+      // nativ herunter (open:false = stil in Downloads, kein "Öffnen mit"-Dialog).
+      // Voraussetzung: "Downloads Folder Enabled" in Median App Studio → Permissions.
       if (isMedianWebView) {
-        prog.textContent = '⏳ Erstelle Download-Link...';
+        const JSONBIN_API_KEY = '$2a$10$MuvCRqc.ZrS4X2maxfgf0O1RMWgGBJiKmCkzsvMaffIcL9sYHP4U6'; // ← deinen JSONBin API Key hier eintragen
 
-        // JSON → Base64 Data-URL
-        const base64 = btoa(unescape(encodeURIComponent(json)));
-        const dataUrl = `data:application/octet-stream;base64,${base64}`;
+        if (JSONBIN_API_KEY.includes('PLACEHOLDER')) {
+          prog.style.display = 'block';
+          prog.innerHTML = `
+            <div style="color:#ef4444;font-weight:700;margin-bottom:8px">⚠️ JSONBin API Key fehlt</div>
+            <div style="font-size:12px;color:#374151;line-height:1.6">
+              1. Gehe zu <strong>jsonbin.io</strong> → kostenlos registrieren<br>
+              2. API Keys → Master Key kopieren<br>
+              3. Im Code <code>JSONBIN_API_KEY</code> ersetzen
+            </div>
+          `;
+          return;
+        }
 
-        prog.style.display = 'block';
-        prog.innerHTML = `
-          <div style="font-weight:700;color:#10b981;margin-bottom:8px">✅ Backup bereit (${sizeMB} MB)</div>
-          <div style="font-size:12px;color:#374151;margin-bottom:10px">Tippe auf den Button – die Datei wird in Downloads gespeichert:</div>
-          <a id="mediaDownloadLink" href="${dataUrl}" download="${filename}"
-             style="display:block;background:#10b981;color:#fff;padding:16px;border-radius:12px;font-weight:900;font-size:16px;text-align:center;text-decoration:none">
-            📥 ${filename} speichern
-          </a>
-          <div style="font-size:11px;color:#9ca3af;margin-top:8px;text-align:center">Gedrückt halten → "Link herunterladen" falls nötig</div>
-        `;
-        return;
+        prog.textContent = '⏳ Lade Backup hoch...';
+        try {
+          // Backup auf JSONBin hochladen (public bin → keine Auth zum Lesen nötig)
+          const uploadRes = await fetch('https://api.jsonbin.io/v3/b', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Master-Key': JSONBIN_API_KEY,
+              'X-Bin-Name': filename,
+              'X-Bin-Private': 'false'   // public → Median kann es herunterladen
+            },
+            body: json
+          });
+
+          if (!uploadRes.ok) throw new Error('JSONBin Upload fehlgeschlagen: ' + uploadRes.status);
+          const uploadData = await uploadRes.json();
+          const binId = uploadData.metadata.id;
+          const downloadUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
+
+          prog.textContent = '⏳ Starte Download...';
+
+          // Median lädt die Datei direkt in den Downloads-Ordner
+          // open:false = kein "Öffnen mit"-Dialog (benötigt "Downloads Folder Enabled" in Median Permissions)
+          if (window.median && window.median.share && window.median.share.downloadFile) {
+            await window.median.share.downloadFile({ url: downloadUrl, open: false });
+            prog.style.display = 'block';
+            prog.innerHTML = `<div style="color:#10b981;font-weight:700">✅ Backup gespeichert in Downloads: ${filename} (${sizeMB} MB)</div>`;
+            setTimeout(()=>prog.style.display='none', 6000);
+          } else {
+            // Median Bridge nicht verfügbar – Fallback: direkt im Browser öffnen
+            window.open(downloadUrl, '_blank');
+            prog.innerHTML = `<div style="color:#10b981;font-weight:700">✅ Download gestartet: ${filename}</div>`;
+            setTimeout(()=>prog.style.display='none', 6000);
+          }
+
+          // Bin nach 1 Stunde löschen (Best-Effort, kein Warten)
+          setTimeout(() => {
+            fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+              method: 'DELETE',
+              headers: { 'X-Master-Key': JSONBIN_API_KEY }
+            }).catch(()=>{});
+          }, 3600000);
+
+          return;
+        } catch(uploadErr) {
+          // JSONBin fehlgeschlagen → Data-URL Fallback mit Anleitung
+          prog.style.display = 'block';
+          prog.innerHTML = `
+            <div style="color:#f59e0b;font-weight:700;margin-bottom:8px">⚠️ Upload fehlgeschlagen (${uploadErr.message})</div>
+            <div style="font-size:12px;color:#374151;margin-bottom:8px">Backup als Datei-Link (tippe zum Speichern):</div>
+            <a href="data:application/octet-stream;base64,${btoa(unescape(encodeURIComponent(json)))}" download="${filename}"
+               style="display:block;background:#10b981;color:#fff;padding:14px;border-radius:12px;font-weight:900;font-size:15px;text-align:center;text-decoration:none">
+              📥 ${filename} (${sizeMB} MB)
+            </a>
+          `;
+          return;
+        }
       }
 
       // ── Methode 4: Blob-Link (Desktop-Fallback) ──
