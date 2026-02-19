@@ -1494,7 +1494,7 @@ function renderSystem(host) {
     <h3 style="margin:20px 0 10px">📥 Backup importieren</h3>
     <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Stellt ein vollständiges Backup wieder her. Alle aktuellen Daten werden überschrieben.</p>
     <button id="importData">📥 Backup importieren</button>
-    <input type="file" id="importFile" accept=".json" style="display:none"/>
+    <input type="file" id="importFile" accept=".json,.txt" style="display:none"/>
     <div id="importProgress" style="display:none;margin-top:8px;padding:12px;background:#f0f4ff;border-radius:12px;font-size:13px;color:#374151;line-height:1.6"></div>
 
     <h3 style="margin:20px 0 10px">🔄 Reset</h3>
@@ -1568,12 +1568,13 @@ function renderSystem(host) {
         images:   images
       };
       const json     = JSON.stringify(backup);
-      const blob     = new Blob([json], {type:'application/json'});
-      const filename = `kickr_backup_${today()}.json`;
-      const sizeMB   = (blob.size/1024/1024).toFixed(1);
-
-      // Median/Android WebView erkennen – showSaveFilePicker ist dort ein defekter Stub
+      // Median/Android WebView: .json wird blockiert ("no app to open") → .txt verwenden
       const isMedianWebView = /median/i.test(navigator.userAgent) || (/Android/.test(navigator.userAgent) && /wv\)/.test(navigator.userAgent));
+      const ext      = isMedianWebView ? 'txt' : 'json';
+      const mimeType = isMedianWebView ? 'text/plain' : 'application/json';
+      const blob     = new Blob([json], {type: mimeType});
+      const filename = `kickr_backup_${today()}.${ext}`;
+      const sizeMB   = (blob.size/1024/1024).toFixed(1);
 
       // ── Methode 1: File System Access API – nur echter Desktop ──
       if (window.showSaveFilePicker && !isMedianWebView) {
