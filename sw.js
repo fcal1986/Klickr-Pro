@@ -1,5 +1,5 @@
 // Service Worker v2.0 – Kickr Training PRO
-const CACHE = 'kickr-v3';
+const CACHE = 'kickr-v4';
 const ASSETS = [
   '/',
   '/index.html',

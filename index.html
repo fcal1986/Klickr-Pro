@@ -219,14 +219,15 @@
 
 <script>
 // ================================================================
-// KICKR TRAINING PRO v3.0
+// KICKR TRAINING PRO v4.0
 // Feature A: Athleten-Foto aus Galerie
-// Feature B: Übungsbilder in Templates + Lightbox
+// Feature B: Übungsbilder in Templates + Lightbox (max. 5)
 // Feature 2: Trainings-Streak & Wochenziel
 // Feature 4: Drag & Drop Übungsreihenfolge
 // Feature 11: Athleten-Duell-Screen
 // Feature 13: Trainings-Notiz
 // Feature 18: Swipe-to-Repeat
+// v4.0: Export/Import mit Fotos, einklappbare Listen, Sortierung, grüner Wochentag
 // ================================================================
 
 const $ = id => document.getElementById(id);
@@ -424,7 +425,8 @@ function closeLightbox() {
 $('lbClose').onclick  = closeLightbox;
 $('lb-prev').onclick  = async () => { _lbIndex = (_lbIndex-1+_lbImgs.length)%_lbImgs.length; await _lbRender(); };
 $('lb-next').onclick  = async () => { _lbIndex = (_lbIndex+1)%_lbImgs.length; await _lbRender(); };
-$('lightbox').onclick = e => { if (e.target === $('lightbox') || e.target === $('lightbox-img')) {} };
+// Click outside image (on backdrop) closes lightbox
+$('lightbox').onclick = e => { if (e.target === $('lightbox')) closeLightbox(); };
 
 // Swipe on lightbox
 let _lbSX = 0;
@@ -785,7 +787,7 @@ function triggerExPhotoUpload(tplId, exId) {
   const tpl = state.templates.find(t=>t.id===tplId);
   const ex  = tpl?.exercises.find(e=>e.id===exId);
   if (!ex) return;
-  if ((ex.customImgIds||[]).length >= 2) { showToast('⚠️ Max. 2 Bilder pro Übung'); return; }
+  if ((ex.customImgIds||[]).length >= 5) { showToast('⚠️ Max. 5 Bilder pro Übung'); return; }
 
   const inp = document.createElement('input');
   inp.type='file'; inp.accept='image/*'; inp.style.display='none';
@@ -848,7 +850,7 @@ function render() {
     athDiv.innerHTML = state.activeIds.map(aid => {
       const a = state.athletes.find(x=>x.id===aid); if(!a) return '';
       const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
-      return `<div class="ath ${a.id===state.athId?'active':''}" data-ath="${a.id}">
+      return `<div class="ath ${a.id===state.athId?'active':''}" data-ath="${a.id}" draggable="true" data-ath-drag="${a.id}" style="cursor:grab">
         <img src="${src}" data-lazy-ath="${a.id}"/>
         <div class="ath-name">${esc(a.name)}</div>
       </div>`;
@@ -862,6 +864,20 @@ function render() {
     });
     $$('[data-ath]').forEach(el => {
       el.onclick = () => { state.athId=el.getAttribute('data-ath'); save(); render(); };
+    });
+    // Drag-to-reorder athletes bar
+    let _athDragSrc = null;
+    $$('[data-ath-drag]').forEach(el => {
+      el.addEventListener('dragstart', e => { _athDragSrc = el; e.dataTransfer.effectAllowed='move'; });
+      el.addEventListener('dragover',  e => { e.preventDefault(); });
+      el.addEventListener('drop', e => {
+        e.preventDefault();
+        if (!_athDragSrc || _athDragSrc===el) return;
+        const fromId = _athDragSrc.getAttribute('data-ath-drag');
+        const toId   = el.getAttribute('data-ath-drag');
+        const fi = state.activeIds.indexOf(fromId), ti = state.activeIds.indexOf(toId);
+        if (fi>=0 && ti>=0) { state.activeIds.splice(fi,1); state.activeIds.splice(ti,0,fromId); save(); render(); }
+      });
     });
   } else {
     athDiv.style.display = 'none';
@@ -901,6 +917,7 @@ function renderTracking(host) {
   }
 
   // Training selector row
+  const todayStr = today();
   let html = renderStreakBanner();
   html += `<div class="card"><div class="sec-head"><span>🏋️ Training</span>
     <button class="small" id="newTr">➕ Neu</button></div><div class="scroll-row">`;
@@ -908,15 +925,27 @@ function renderTracking(host) {
     if (!t.exercises?.length) return;
     const active = t.id===tr.id?'active':'';
     const photo  = PHOTOS.find(p=>p.id===(t.exercises[0]?.exPhotoId||'e1'))||PHOTOS[0];
-    html += `<div class="tr-card ${active}" data-tr="${t.id}">
+    // Green border if training was completed today
+    const doneToday = t.date === todayStr && Object.values(t.records||{}).some(recs=>recs.length>0);
+    const borderStyle = doneToday ? 'border-color:#10b981;box-shadow:0 4px 12px rgba(16,185,129,.3)' : '';
+    const dayLabel = doneToday ? '<div style="position:absolute;top:8px;left:8px;background:#10b981;color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:8px">✅ Heute</div>' : '';
+    html += `<div class="tr-card ${active}" data-tr="${t.id}" style="${borderStyle}">
       <button class="del-btn" data-del="${t.id}" style="top:8px;right:46px">🗑</button>
       <button class="del-btn" data-edit-date="${t.id}" style="top:8px;right:8px;background:#3b82f6">📅</button>
+      ${dayLabel}
       <img src="${photo.url}"/>
       <div class="tr-info"><div class="tr-title">${esc(t.tplName)}</div><div class="tr-date">${fmtDate(t.date)}</div></div>
       ${t.note?`<div class="tr-note-badge">📝 ${esc(t.note)}</div>`:''}
     </div>`;
   });
   html += `</div></div>`;
+
+  // Athlete reorder (drag-and-drop in athletes bar) hint
+  html += `<div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:14px">👥</span>
+    <span style="font-size:13px;font-weight:700;flex:1">Athleten-Reihenfolge</span>
+    <span style="font-size:11px;color:#6b7280">Gedrückt halten + ziehen</span>
+  </div>`;
 
   // Exercise chips
   html += `<div class="card"><div class="sec-head"><span>💪 Übung</span></div><div>`;
@@ -1172,17 +1201,50 @@ function renderStats(host) {
 }
 
 // ================================================================
-// RENDER TEMPLATES
+// RENDER TEMPLATES – collapsible list with sort
 // ================================================================
+let _tplSort = 'az';
+let _tplExpanded = new Set();
+
 function renderTemplates(host) {
-  let html=`<div class="card"><h2>Templates</h2><button id="addTpl">➕ Neues Template</button></div>`;
-  state.templates.forEach(tpl=>{
-    html+=`<div class="card"><h3>${esc(tpl.name)}</h3>
-      <label>Name</label><input value="${esc(tpl.name)}" data-tplName="${tpl.id}"/>
-      <h4 style="margin:16px 0 8px">Übungen (${tpl.exercises.length})</h4>`;
-    tpl.exercises.forEach((ex,i)=>{
-      const imgIds=ex.customImgIds||[];
-      html+=`<div class="ex-drag-item" draggable="true" data-drag-idx="${i}" data-drag-tpl="${tpl.id}">
+  const sorted = [...state.templates].sort((a,b) =>
+    _tplSort === 'az' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
+  );
+
+  let html = `<div class="card">
+    <h2>📋 Templates</h2>
+    <button id="addTpl" style="margin-top:12px">➕ Neues Template</button>
+    <div class="row" style="margin-top:12px;gap:8px">
+      <button class="small" id="tplExpandAll">⬇ Alle ausklappen</button>
+      <button class="small" id="tplCollapseAll">⬆ Alle einklappen</button>
+    </div>
+    <div class="row" style="margin-top:8px;gap:8px">
+      <button class="small" id="tplSortAZ" style="${_tplSort==='az'?'':'background:#e5e7eb;color:#374151'}">A → Z</button>
+      <button class="small" id="tplSortZA" style="${_tplSort==='za'?'':'background:#e5e7eb;color:#374151'}">Z → A</button>
+    </div>
+  </div>`;
+
+  sorted.forEach(tpl => {
+    const expanded = _tplExpanded.has(tpl.id);
+    html += `<div class="card" style="padding:0;overflow:hidden">
+      <!-- Header row -->
+      <div data-tpl-toggle="${tpl.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none">
+        <div style="width:40px;height:40px;border-radius:12px;background:#f0f4ff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📋</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:900;font-size:15px">${esc(tpl.name)}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">${tpl.exercises.length} Übungen</div>
+        </div>
+        <span style="font-size:18px;color:#9ca3af;transform:${expanded?'rotate(180deg)':'rotate(0deg)'};display:block;transition:.2s">▾</span>
+      </div>
+
+      <!-- Collapsible body -->
+      <div style="display:${expanded?'block':'none'};padding:0 16px 16px">
+        <label>Name</label><input value="${esc(tpl.name)}" data-tplName="${tpl.id}"/>
+        <h4 style="margin:16px 0 8px">Übungen (${tpl.exercises.length})</h4>`;
+
+    tpl.exercises.forEach((ex,i) => {
+      const imgIds = ex.customImgIds || [];
+      html += `<div class="ex-drag-item" draggable="true" data-drag-idx="${i}" data-drag-tpl="${tpl.id}">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
           <span class="drag-handle">⠿</span>
           <strong style="flex:1">${esc(ex.title)}</strong>
@@ -1203,179 +1265,262 @@ function renderTemplates(host) {
         <select data-exPhoto="${tpl.id},${i}">
           ${PHOTOS.map(p=>`<option value="${p.id}" ${p.id===ex.exPhotoId?'selected':''}>${p.label}</option>`).join('')}
         </select>
-        <label>📸 Übungsbilder (max. 2)</label>
+        <label>📸 Übungsbilder (max. 5)</label>
         <div class="ex-img-grid">
           ${imgIds.map(id=>`<div class="ex-thumb-wrap">
             <img src="${_imgCache.get(id)||''}" data-load-th="${id}" data-open-lb="${tpl.id}|${ex.id}|${id}" loading="lazy"/>
             <button class="ex-thumb-del" data-del-img="${tpl.id}|${ex.id}|${id}">✕</button>
           </div>`).join('')}
-          ${imgIds.length<2?`<button class="ex-add-photo-btn" data-add-ex-photo="${tpl.id}|${ex.id}">➕</button>`:''}
+          ${imgIds.length<5?`<button class="ex-add-photo-btn" data-add-ex-photo="${tpl.id}|${ex.id}">➕</button>`:''}
         </div>
       </div>`;
     });
-    html+=`<button data-addEx="${tpl.id}">➕ Übung hinzufügen</button>
-      <div class="row" style="margin-top:16px">
+
+    html += `<button data-addEx="${tpl.id}">➕ Übung hinzufügen</button>
+      <div class="row" style="margin-top:12px">
         <button data-newTr="${tpl.id}">🚀 Training starten</button>
         <button class="danger" data-delTpl="${tpl.id}">🗑 Löschen</button>
-      </div></div>`;
-  });
-  host.innerHTML=html;
-
-  // Lazy-load exercise thumbnails in template editor
-  $$('[data-load-th]').forEach(async img=>{
-    const id=img.getAttribute('data-load-th');
-    const src=_imgCache.get(id)||await cachedThumb(id);
-    if(src){img.src=src;_imgCache.set(id,src);}
+      </div>
+      </div></div>`; // close body + card
   });
 
-  // Lightbox from template view
-  $$('[data-open-lb]').forEach(img=>{
-    img.onclick=()=>{
-      const [tplId,exId,imgId]=img.getAttribute('data-open-lb').split('|');
-      const tpl=state.templates.find(t=>t.id===tplId);
-      const ex=tpl?.exercises.find(e=>e.id===exId);
-      if(ex) openLightbox(ex.customImgIds, ex.customImgIds.indexOf(imgId));
+  host.innerHTML = html;
+
+  // Toggle individual template
+  $$('[data-tpl-toggle]').forEach(row => {
+    row.onclick = () => {
+      const id = row.getAttribute('data-tpl-toggle');
+      if (_tplExpanded.has(id)) _tplExpanded.delete(id); else _tplExpanded.add(id);
+      renderTemplates(host);
     };
   });
 
-  // Add exercise photo
-  $$('[data-add-ex-photo]').forEach(btn=>{
-    btn.onclick=()=>{const[tplId,exId]=btn.getAttribute('data-add-ex-photo').split('|');triggerExPhotoUpload(tplId,exId);};
+  // Expand/collapse all
+  $('tplExpandAll').onclick = () => { state.templates.forEach(t => _tplExpanded.add(t.id)); renderTemplates(host); };
+  $('tplCollapseAll').onclick = () => { _tplExpanded.clear(); renderTemplates(host); };
+  $('tplSortAZ').onclick = () => { _tplSort = 'az'; renderTemplates(host); };
+  $('tplSortZA').onclick = () => { _tplSort = 'za'; renderTemplates(host); };
+
+  // Lazy-load exercise thumbnails
+  $$('[data-load-th]').forEach(async img => {
+    const id = img.getAttribute('data-load-th');
+    const src = _imgCache.get(id) || await cachedThumb(id);
+    if (src) { img.src=src; _imgCache.set(id,src); }
   });
 
-  // Delete exercise photo
-  $$('[data-del-img]').forEach(btn=>{
-    btn.onclick=()=>{const[tplId,exId,imgId]=btn.getAttribute('data-del-img').split('|');if(confirm('Bild löschen?'))deleteExPhoto(tplId,exId,imgId);};
+  // Lightbox from template view
+  $$('[data-open-lb]').forEach(img => {
+    img.onclick = () => {
+      const [tplId,exId,imgId] = img.getAttribute('data-open-lb').split('|');
+      const tpl = state.templates.find(t=>t.id===tplId);
+      const ex = tpl?.exercises.find(e=>e.id===exId);
+      if (ex) openLightbox(ex.customImgIds, ex.customImgIds.indexOf(imgId));
+    };
   });
 
-  // ── FEATURE 4: Drag & Drop Reihenfolge ──
+  $$('[data-add-ex-photo]').forEach(btn => { btn.onclick=()=>{ const[tplId,exId]=btn.getAttribute('data-add-ex-photo').split('|'); triggerExPhotoUpload(tplId,exId); }; });
+  $$('[data-del-img]').forEach(btn => { btn.onclick=()=>{ const[tplId,exId,imgId]=btn.getAttribute('data-del-img').split('|'); if(confirm('Bild löschen?')) deleteExPhoto(tplId,exId,imgId); }; });
+
+  // ── Drag & Drop Reihenfolge ──
   let dragSrc = null;
   $$('.ex-drag-item').forEach(item => {
-    item.addEventListener('dragstart', e => {
-      dragSrc = item;
-      item.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    item.addEventListener('dragend', () => {
-      item.classList.remove('dragging');
-      $$('.ex-drag-item').forEach(i => i.classList.remove('drag-over'));
-    });
-    item.addEventListener('dragover', e => {
-      e.preventDefault();
-      if (item !== dragSrc) { $$('.ex-drag-item').forEach(i=>i.classList.remove('drag-over')); item.classList.add('drag-over'); }
-    });
+    item.addEventListener('dragstart', e => { dragSrc=item; item.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+    item.addEventListener('dragend',   () => { item.classList.remove('dragging'); $$('.ex-drag-item').forEach(i=>i.classList.remove('drag-over')); });
+    item.addEventListener('dragover',  e => { e.preventDefault(); if(item!==dragSrc){$$('.ex-drag-item').forEach(i=>i.classList.remove('drag-over'));item.classList.add('drag-over');} });
     item.addEventListener('drop', e => {
       e.preventDefault();
-      if (!dragSrc || dragSrc === item) return;
-      const tplId = dragSrc.getAttribute('data-drag-tpl');
-      const fromIdx = +dragSrc.getAttribute('data-drag-idx');
-      const toIdx   = +item.getAttribute('data-drag-idx');
-      const tpl = state.templates.find(t=>t.id===tplId);
-      if (!tpl) return;
-      const [moved] = tpl.exercises.splice(fromIdx, 1);
-      tpl.exercises.splice(toIdx, 0, moved);
-      save(); render();
+      if (!dragSrc || dragSrc===item) return;
+      const tplId=dragSrc.getAttribute('data-drag-tpl'), fromIdx=+dragSrc.getAttribute('data-drag-idx'), toIdx=+item.getAttribute('data-drag-idx');
+      const tpl=state.templates.find(t=>t.id===tplId); if(!tpl) return;
+      const [moved]=tpl.exercises.splice(fromIdx,1); tpl.exercises.splice(toIdx,0,moved);
+      save(); renderTemplates(host);
     });
   });
 
-  // ── All original template handlers ──
-  $('addTpl')?.addEventListener('click',()=>{
-    const name=prompt('Template Name:','Neues Template');if(!name)return;
-    state.templates.push({id:'tpl_'+uid(),name,exercises:[{id:'ex_'+uid(),title:'Übung 1',type:'reps',restSec:60,hint:'',exPhotoId:'e1',customImgIds:[]}]});
-    save();render();
+  $('addTpl')?.addEventListener('click', () => {
+    const name=prompt('Template Name:','Neues Template'); if(!name) return;
+    const id='tpl_'+uid();
+    state.templates.push({id,name,exercises:[{id:'ex_'+uid(),title:'Übung 1',type:'reps',restSec:60,hint:'',exPhotoId:'e1',customImgIds:[]}]});
+    _tplExpanded.add(id); // auto-expand new template
+    save(); renderTemplates(host);
   });
   $$('[data-tplName]').forEach(inp=>{inp.oninput=()=>{const t=state.templates.find(t=>t.id===inp.getAttribute('data-tplName'));if(t){t.name=inp.value;save();}};});
   $$('[data-exTitle]').forEach(inp=>{inp.oninput=()=>{const[tid,i]=inp.getAttribute('data-exTitle').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].title=inp.value;save();}};});
   $$('[data-exType]').forEach(sel=>{sel.onchange=()=>{const[tid,i]=sel.getAttribute('data-exType').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].type=sel.value;save();}};});
   $$('[data-exRest]').forEach(inp=>{inp.oninput=()=>{const[tid,i]=inp.getAttribute('data-exRest').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].restSec=parseInt(inp.value)||0;save();}};});
   $$('[data-exPhoto]').forEach(sel=>{sel.onchange=()=>{const[tid,i]=sel.getAttribute('data-exPhoto').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].exPhotoId=sel.value;save();}};});
-  $$('[data-delEx]').forEach(btn=>{btn.onclick=()=>{const[tid,i]=btn.getAttribute('data-delEx').split(',');const t=state.templates.find(t=>t.id===tid);if(t&&t.exercises.length>1&&confirm('Übung löschen?')){t.exercises.splice(+i,1);save();render();}};});
-  $$('[data-addEx]').forEach(btn=>{btn.onclick=()=>{const t=state.templates.find(t=>t.id===btn.getAttribute('data-addEx'));if(t){t.exercises.push({id:'ex_'+uid(),title:'Neue Übung',type:'reps',restSec:60,hint:'',exPhotoId:'e1',customImgIds:[]});save();render();}};});
+  $$('[data-delEx]').forEach(btn=>{btn.onclick=()=>{const[tid,i]=btn.getAttribute('data-delEx').split(',');const t=state.templates.find(t=>t.id===tid);if(t&&t.exercises.length>1&&confirm('Übung löschen?')){t.exercises.splice(+i,1);save();renderTemplates(host);}};});
+  $$('[data-addEx]').forEach(btn=>{btn.onclick=()=>{const t=state.templates.find(t=>t.id===btn.getAttribute('data-addEx'));if(t){t.exercises.push({id:'ex_'+uid(),title:'Neue Übung',type:'reps',restSec:60,hint:'',exPhotoId:'e1',customImgIds:[]});save();renderTemplates(host);}};});
   $$('[data-newTr]').forEach(btn=>{btn.onclick=()=>{createTraining(btn.getAttribute('data-newTr'));state.tab='tracking';save();render();};});
-  $$('[data-delTpl]').forEach(btn=>{btn.onclick=()=>{if(!confirm('Template löschen?'))return;state.templates=state.templates.filter(t=>t.id!==btn.getAttribute('data-delTpl'));save();render();};});
+  $$('[data-delTpl]').forEach(btn=>{btn.onclick=()=>{if(!confirm('Template löschen?'))return;const id=btn.getAttribute('data-delTpl');state.templates=state.templates.filter(t=>t.id!==id);_tplExpanded.delete(id);save();renderTemplates(host);};});
 }
 
 // ================================================================
-// RENDER ATHLETES – with photo upload (FEATURE A)
+// RENDER ATHLETES – collapsible list with sort
 // ================================================================
+let _athSort = 'az'; // 'az' | 'za'
+let _athExpanded = new Set(); // IDs of expanded athletes
+
 function renderAthletes(host) {
-  let html=`<div class="card"><h2>Athleten-Verwaltung</h2><button id="addAth">➕ Neuer Athlet</button></div>`;
-  state.athletes.forEach(a=>{
-    const active=state.activeIds.includes(a.id);
-    const avatarSrc=_imgCache.get(a.photoId)||a.photo||DEFAULT_AVATAR;
-    html+=`<div class="card">
-      <h3>${esc(a.name)}</h3>
-      <p style="color:#6b7280">Status: ${active?'✅ Aktiv':'⏸ Inaktiv'}</p>
-      <div class="ath-photo-wrap">
-        <img src="${avatarSrc}" data-lazy-ath-detail="${a.id}" alt="${esc(a.name)}"/>
-        <button class="ath-photo-btn" data-photo-upload="${a.id}" title="Foto aus Galerie wählen">📷</button>
+  // Sort athletes
+  const sorted = [...state.athletes].sort((a,b) =>
+    _athSort === 'az' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
+  );
+
+  let html = `<div class="card">
+    <h2>👥 Athleten-Verwaltung</h2>
+    <button id="addAth" style="margin-top:12px">➕ Neuer Athlet</button>
+    <div class="row" style="margin-top:12px;gap:8px">
+      <button class="small" id="athExpandAll">⬇ Alle ausklappen</button>
+      <button class="small" id="athCollapseAll">⬆ Alle einklappen</button>
+    </div>
+    <div class="row" style="margin-top:8px;gap:8px">
+      <button class="small ${_athSort==='az'?'':'secondary'}" id="athSortAZ" style="${_athSort==='az'?'':'background:#e5e7eb;color:#374151'}">A → Z</button>
+      <button class="small ${_athSort==='za'?'':'secondary'}" id="athSortZA" style="${_athSort==='za'?'':'background:#e5e7eb;color:#374151'}">Z → A</button>
+    </div>
+  </div>`;
+
+  sorted.forEach(a => {
+    const active = state.activeIds.includes(a.id);
+    const avatarSrc = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
+    const expanded = _athExpanded.has(a.id);
+
+    html += `<div class="card" style="padding:0;overflow:hidden">
+      <!-- Header row – always visible -->
+      <div data-ath-toggle="${a.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none">
+        <img src="${avatarSrc}" data-lazy-ath-detail="${a.id}"
+          style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid ${active?'#10b981':'#e5e7eb'};flex-shrink:0"/>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:900;font-size:15px">${esc(a.name)}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px">${active?'✅ Aktiv':'⏸ Inaktiv'}</div>
+        </div>
+        <span style="font-size:18px;color:#9ca3af;transition:.2s;transform:${expanded?'rotate(180deg)':'rotate(0deg)'};display:block">▾</span>
       </div>
-      <label>Name</label><input value="${esc(a.name)}" data-athName="${a.id}"/>
-      <label>Foto URL (optional, wird durch Galerie-Foto ersetzt)</label>
-      <input value="${esc(a.photo||'')}" data-athPhoto="${a.id}" placeholder="https://..."/>
-      <div class="row" style="margin-top:12px">
-        <button data-toggle="${a.id}">${active?'Deaktivieren':'Aktivieren'}</button>
-        <button class="danger" data-delAth="${a.id}">🗑 Löschen</button>
+
+      <!-- Collapsible body -->
+      <div style="display:${expanded?'block':'none'};padding:0 16px 16px">
+        <div class="ath-photo-wrap">
+          <img src="${avatarSrc}" data-lazy-ath-detail2="${a.id}" alt="${esc(a.name)}"/>
+          <button class="ath-photo-btn" data-photo-upload="${a.id}" title="Foto aus Galerie wählen">📷</button>
+        </div>
+        <label>Name</label><input value="${esc(a.name)}" data-athName="${a.id}"/>
+        <label>Foto URL (optional)</label>
+        <input value="${esc(a.photo||'')}" data-athPhoto="${a.id}" placeholder="https://..."/>
+        <div class="row" style="margin-top:12px">
+          <button data-toggle="${a.id}">${active?'⏸ Deaktivieren':'✅ Aktivieren'}</button>
+          <button class="danger" data-delAth="${a.id}">🗑 Löschen</button>
+        </div>
       </div>
     </div>`;
   });
-  host.innerHTML=html;
 
-  // Lazy-load athlete detail photos
-  $$('[data-lazy-ath-detail]').forEach(async img=>{
-    const a=state.athletes.find(x=>x.id===img.getAttribute('data-lazy-ath-detail'));
-    if(a?.photoId){const src=await cachedThumb(a.photoId);if(src)img.src=src;}
+  host.innerHTML = html;
+
+  // Lazy-load athlete list photos
+  $$('[data-lazy-ath-detail],[data-lazy-ath-detail2]').forEach(async img => {
+    const id = img.getAttribute('data-lazy-ath-detail') || img.getAttribute('data-lazy-ath-detail2');
+    const a = state.athletes.find(x=>x.id===id);
+    if (a?.photoId) { const src = await cachedThumb(a.photoId); if(src) img.src=src; }
   });
+
+  // Toggle individual collapse
+  $$('[data-ath-toggle]').forEach(row => {
+    row.onclick = () => {
+      const id = row.getAttribute('data-ath-toggle');
+      if (_athExpanded.has(id)) _athExpanded.delete(id); else _athExpanded.add(id);
+      renderAthletes(host);
+    };
+  });
+
+  // Expand/collapse all
+  $('athExpandAll').onclick = () => {
+    state.athletes.forEach(a => _athExpanded.add(a.id));
+    renderAthletes(host);
+  };
+  $('athCollapseAll').onclick = () => {
+    _athExpanded.clear();
+    renderAthletes(host);
+  };
+
+  // Sort buttons
+  $('athSortAZ').onclick = () => { _athSort = 'az'; renderAthletes(host); };
+  $('athSortZA').onclick = () => { _athSort = 'za'; renderAthletes(host); };
 
   // Photo upload
-  $$('[data-photo-upload]').forEach(btn=>{
-    btn.onclick=()=>triggerAthPhotoUpload(btn.getAttribute('data-photo-upload'));
+  $$('[data-photo-upload]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); triggerAthPhotoUpload(btn.getAttribute('data-photo-upload')); };
   });
 
-  $('addAth')?.addEventListener('click',()=>{
-    const name=prompt('Name:','Athlet '+(state.athletes.length+1));if(!name)return;
-    const a={id:'ath_'+uid(),name,photo:'',photoId:''};
-    state.athletes.push(a);state.activeIds.push(a.id);save();render();
+  $('addAth')?.addEventListener('click', () => {
+    const name = prompt('Name:', 'Athlet ' + (state.athletes.length+1)); if (!name) return;
+    const a = {id:'ath_'+uid(), name, photo:'', photoId:''};
+    state.athletes.push(a); state.activeIds.push(a.id);
+    _athExpanded.add(a.id); // auto-expand new athlete
+    save(); renderAthletes(host);
   });
-  $$('[data-athName]').forEach(inp=>{inp.oninput=()=>{const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athName'));if(a){a.name=inp.value;save();}};});
-  $$('[data-athPhoto]').forEach(inp=>{inp.oninput=()=>{const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athPhoto'));if(a){a.photo=inp.value;save();}};});
-  $$('[data-toggle]').forEach(btn=>{btn.onclick=()=>{const id=btn.getAttribute('data-toggle');const i=state.activeIds.indexOf(id);if(i>=0)state.activeIds.splice(i,1);else state.activeIds.push(id);save();render();};});
-  $$('[data-delAth]').forEach(btn=>{
-    btn.onclick=()=>{
-      if(!confirm('Athlet löschen?'))return;
-      const id=btn.getAttribute('data-delAth');
-      const a=state.athletes.find(x=>x.id===id);
-      if(a?.photoId){imgDelete('thumbs',a.photoId);imgDelete('full',a.photoId);_imgCache.delete(a.photoId);}
-      state.athletes=state.athletes.filter(x=>x.id!==id);
-      state.activeIds=state.activeIds.filter(x=>x!==id);
-      if(state.athId===id)state.athId=state.activeIds[0]||'';
-      save();render();
+  $$('[data-athName]').forEach(inp => { inp.oninput=()=>{ const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athName')); if(a){a.name=inp.value;save();} }; });
+  $$('[data-athPhoto]').forEach(inp => { inp.oninput=()=>{ const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athPhoto')); if(a){a.photo=inp.value;save();} }; });
+  $$('[data-toggle]').forEach(btn => { btn.onclick=()=>{ const id=btn.getAttribute('data-toggle'); const i=state.activeIds.indexOf(id); if(i>=0)state.activeIds.splice(i,1); else state.activeIds.push(id); save(); renderAthletes(host); }; });
+  $$('[data-delAth]').forEach(btn => {
+    btn.onclick = () => {
+      if (!confirm('Athlet löschen?')) return;
+      const id = btn.getAttribute('data-delAth');
+      const a = state.athletes.find(x=>x.id===id);
+      if (a?.photoId) { imgDelete('thumbs',a.photoId); imgDelete('full',a.photoId); _imgCache.delete(a.photoId); }
+      state.athletes = state.athletes.filter(x=>x.id!==id);
+      state.activeIds = state.activeIds.filter(x=>x!==id);
+      _athExpanded.delete(id);
+      if (state.athId===id) state.athId = state.activeIds[0]||'';
+      save(); renderAthletes(host);
     };
   });
 }
 
 // ================================================================
-// RENDER SYSTEM
+// RENDER SYSTEM – vollständiger Export/Import inkl. Bilder
 // ================================================================
 function renderSystem(host) {
-  host.innerHTML=`<div class="card"><h2>System & Export</h2>
+  host.innerHTML=`<div class="card">
+    <h2>⚙️ System & Export</h2>
+
     <h3 style="margin:20px 0 10px">📄 PDF Export</h3>
-    <button id="pdfSingle">📄 Aktuelles Training</button>
-    <h3 style="margin:20px 0 10px">💾 Daten</h3>
-    <button id="exportData">💾 Daten exportieren</button>
-    <button id="importData">📥 Daten importieren</button>
+    <button id="pdfSingle">📄 Aktuelles Training als PDF</button>
+
+    <h3 style="margin:20px 0 10px">💾 Vollständiges Backup</h3>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Exportiert alle Daten: Trainings, Statistiken, Templates, Athleten, Systemeinstellungen <strong>und alle Fotos</strong>. Kann vollständig re-importiert werden.</p>
+    <button id="exportFull">💾 Vollständiges Backup exportieren</button>
+    <div id="exportProgress" style="display:none;margin-top:8px;font-size:13px;color:#6b7280;text-align:center"></div>
+
+    <h3 style="margin:20px 0 10px">📥 Backup importieren</h3>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Stellt ein vollständiges Backup wieder her. Alle aktuellen Daten werden überschrieben.</p>
+    <button id="importData">📥 Backup importieren</button>
     <input type="file" id="importFile" accept=".json" style="display:none"/>
+    <div id="importProgress" style="display:none;margin-top:8px;font-size:13px;color:#6b7280;text-align:center"></div>
+
     <h3 style="margin:20px 0 10px">🔄 Reset</h3>
     <button class="danger" id="reset">🗑 Alles zurücksetzen</button>
+
+    <h3 style="margin:20px 0 10px">ℹ️ App Info</h3>
+    <div style="background:#f0f4ff;border-radius:12px;padding:12px;font-size:13px;color:#374151">
+      <div><strong>Version:</strong> 3.0</div>
+      <div style="margin-top:4px"><strong>Athleten:</strong> ${state.athletes.length}</div>
+      <div style="margin-top:4px"><strong>Templates:</strong> ${state.templates.length}</div>
+      <div style="margin-top:4px"><strong>Trainings:</strong> ${state.trainings.length}</div>
+      <div style="margin-top:4px"><strong>Einträge gesamt:</strong> ${
+        state.trainings.reduce((sum,tr)=>sum+Object.values(tr.records||{}).reduce((s,r)=>s+r.length,0),0)
+      }</div>
+    </div>
   </div>`;
 
-  $('pdfSingle').onclick=()=>{
+  // PDF Export
+  $('pdfSingle').onclick = () => {
     const tr=state.trainings.find(t=>t.id===state.trainId);const ath=state.athletes.find(a=>a.id===state.athId);
     if(!tr||!ath)return alert('Kein Training/Athlet ausgewählt');
     const{jsPDF}=window.jspdf;const doc=new jsPDF();
     doc.setFontSize(18);doc.text(`Training: ${tr.tplName}`,14,20);
     doc.setFontSize(12);doc.text(`Athlet: ${ath.name}`,14,28);doc.text(`Datum: ${fmtDate(tr.date)}`,14,34);
-    let y=44;
+    if(tr.note)doc.text(`Notiz: ${tr.note}`,14,40);
+    let y=tr.note?48:44;
     tr.exercises.forEach(ex=>{const key=`${ath.id}_${ex.id}`;const recs=tr.records[key]||[];if(!recs.length)return;
       doc.setFontSize(14);doc.text(`${ex.title} (${ex.type})`,14,y);y+=8;
       const rows=recs.map(r=>{let v=ex.type==='reps'?r.value:ex.type==='lr'?`L:${r.left} R:${r.right}`:r.value+'s';return[fmtTime(r.ts),v,r.note||''];});
@@ -1384,19 +1529,108 @@ function renderSystem(host) {
     });
     doc.save(`training_${ath.name}_${tr.date}.pdf`);
   };
-  $('exportData').onclick=()=>{
-    const data={version:'2.0',exported:new Date().toISOString(),state};
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`kickr_backup_${today()}.json`;a.click();URL.revokeObjectURL(url);
+
+  // ── Vollständiger Export inkl. Bilder ──
+  $('exportFull').onclick = async () => {
+    const prog = $('exportProgress');
+    prog.style.display = 'block';
+    prog.textContent = '⏳ Sammle Bilddaten...';
+
+    try {
+      // Collect ALL image IDs from athletes and exercises
+      const allImgIds = new Set();
+      state.athletes.forEach(a => { if(a.photoId) allImgIds.add(a.photoId); });
+      state.templates.forEach(tpl => tpl.exercises?.forEach(ex => (ex.customImgIds||[]).forEach(id=>allImgIds.add(id))));
+      state.trainings.forEach(tr => tr.exercises?.forEach(ex => (ex.customImgIds||[]).forEach(id=>allImgIds.add(id))));
+
+      // Load all images from IDB
+      const images = {};
+      const ids = [...allImgIds];
+      for (let i = 0; i < ids.length; i++) {
+        prog.textContent = `⏳ Exportiere Bilder... ${i+1}/${ids.length}`;
+        const id = ids[i];
+        const thumb = await imgLoad('thumbs', id);
+        const full  = await imgLoad('full',   id);
+        if (thumb || full) images[id] = { thumb: thumb||null, full: full||null };
+      }
+
+      const backup = {
+        version:   '3.0',
+        exported:  new Date().toISOString(),
+        appName:   'Kickr Training PRO',
+        state:     state,
+        images:    images
+      };
+
+      prog.textContent = '⏳ Erstelle Datei...';
+      const json = JSON.stringify(backup);
+      const blob = new Blob([json], {type:'application/json'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `kickr_backup_${today()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      prog.textContent = `✅ Backup exportiert (${ids.length} Bilder, ${(blob.size/1024/1024).toFixed(1)} MB)`;
+      setTimeout(()=>prog.style.display='none', 4000);
+    } catch(err) {
+      prog.textContent = '❌ Fehler: ' + err.message;
+      console.error(err);
+    }
   };
-  $('importData').onclick=()=>$('importFile').click();
-  $('importFile').onchange=e=>{
-    const file=e.target.files[0];if(!file)return;const reader=new FileReader();
-    reader.onload=evt=>{try{const data=JSON.parse(evt.target.result);if(!data.state)throw new Error('Ungültiges Format');if(!confirm('⚠️ Alle Daten werden überschrieben!'))return;state=data.state;save();render();alert('✅ Importiert!');}catch(err){alert('❌ '+err.message);}};
+
+  // ── Vollständiger Import inkl. Bilder ──
+  $('importData').onclick = () => $('importFile').click();
+  $('importFile').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const prog = $('importProgress');
+    prog.style.display = 'block';
+    prog.textContent = '⏳ Lese Datei...';
+
+    const reader = new FileReader();
+    reader.onload = async evt => {
+      try {
+        const backup = JSON.parse(evt.target.result);
+
+        // Validate
+        if (!backup.state) throw new Error('Ungültiges Backup-Format (kein "state" Objekt)');
+        if (!confirm(`⚠️ Backup vom ${backup.exported ? new Date(backup.exported).toLocaleDateString('de-DE') : 'unbekannt'} importieren?\n\nAlle aktuellen Daten werden überschrieben!`)) {
+          prog.style.display='none'; return;
+        }
+
+        // Restore state
+        state = backup.state;
+        save();
+
+        // Restore images if present
+        if (backup.images && Object.keys(backup.images).length) {
+          const ids = Object.keys(backup.images);
+          // Clear existing image DB first
+          _imgDb = null;
+          for (let i = 0; i < ids.length; i++) {
+            prog.textContent = `⏳ Stelle Bilder wieder her... ${i+1}/${ids.length}`;
+            const id = ids[i];
+            const img = backup.images[id];
+            if (img.thumb) await imgSave('thumbs', id, img.thumb);
+            if (img.full)  await imgSave('full',   id, img.full);
+            if (img.thumb) _imgCache.set(id, img.thumb);
+          }
+        }
+
+        prog.textContent = '✅ Import erfolgreich! App wird neu geladen...';
+        setTimeout(() => location.reload(), 1500);
+
+      } catch(err) {
+        prog.textContent = '❌ Import fehlgeschlagen: ' + err.message;
+        console.error(err);
+      }
+    };
     reader.readAsText(file);
   };
-  $('reset').onclick=()=>{
-    if(!confirm('⚠️ ALLES löschen inkl. Fotos?'))return;
+
+  $('reset').onclick = () => {
+    if (!confirm('⚠️ ALLES löschen inkl. aller Fotos und Daten?')) return;
     try{localStorage.clear();}catch{}
     try{indexedDB.deleteDatabase(DB_NAME);}catch{}
     try{indexedDB.deleteDatabase(IMG_DB_NAME);}catch{}
@@ -1493,7 +1727,7 @@ $$('.nav-item').forEach(item=>{item.onclick=()=>{state.tab=item.getAttribute('da
   await preloadAthThumbs();
 
   render();
-  console.log('✅ Kickr PRO v3.0 – Streak, Drag&Drop, Duell, Notizen, Swipe aktiv');
+  console.log('✅ Kickr PRO v4.0 – Export/Import, einklappbare Listen, grüner Wochentag, 5 Fotos aktiv');
 })();
 </script>
 </body>
