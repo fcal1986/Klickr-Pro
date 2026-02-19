@@ -1487,9 +1487,9 @@ function renderSystem(host) {
     <button id="pdfSingle">📄 Aktuelles Training als PDF</button>
 
     <h3 style="margin:20px 0 10px">💾 Vollständiges Backup</h3>
-    <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Exportiert alle Daten: Trainings, Statistiken, Templates, Athleten, Systemeinstellungen <strong>und alle Fotos</strong>. Kann vollständig re-importiert werden.</p>
-    <button id="exportFull">💾 Vollständiges Backup exportieren</button>
-    <div id="exportProgress" style="display:none;margin-top:8px;font-size:13px;color:#6b7280;text-align:center"></div>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Exportiert alle Daten inkl. Fotos. Kann vollständig re-importiert werden.</p>
+    <button id="exportFull">💾 Backup exportieren</button>
+    <div id="exportProgress" style="display:none;margin-top:10px;padding:12px;background:#f0f4ff;border-radius:12px;font-size:13px;color:#374151;line-height:1.6"></div>
 
     <h3 style="margin:20px 0 10px">📥 Backup importieren</h3>
     <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Stellt ein vollständiges Backup wieder her. Alle aktuellen Daten werden überschrieben.</p>
@@ -1534,7 +1534,8 @@ function renderSystem(host) {
   $('exportFull').onclick = async () => {
     const prog = $('exportProgress');
     prog.style.display = 'block';
-    prog.textContent = '⏳ Sammle Bilddaten...';
+    prog.style.color = '#6b7280';
+    prog.textContent = '⏳ Sammle Daten...';
 
     try {
       // Collect ALL image IDs
@@ -1543,17 +1544,17 @@ function renderSystem(host) {
       state.templates.forEach(tpl => tpl.exercises?.forEach(ex => (ex.customImgIds||[]).forEach(id=>allImgIds.add(id))));
       state.trainings.forEach(tr => tr.exercises?.forEach(ex => (ex.customImgIds||[]).forEach(id=>allImgIds.add(id))));
 
-      // Load all images from IDB
-      const images = {};
       const ids = [...allImgIds];
+      const images = {};
       for (let i = 0; i < ids.length; i++) {
-        prog.textContent = `⏳ Exportiere Bilder... ${i+1}/${ids.length}`;
-        const id = ids[i];
+        prog.textContent = `⏳ Exportiere Fotos... ${i+1}/${ids.length}`;
+        const id    = ids[i];
         const thumb = await imgLoad('thumbs', id);
         const full  = await imgLoad('full',   id);
         if (thumb || full) images[id] = { thumb: thumb||null, full: full||null };
       }
 
+      prog.textContent = '⏳ Erstelle Backup-Datei...';
       const backup = {
         version:  '4.0',
         exported: new Date().toISOString(),
@@ -1561,15 +1562,13 @@ function renderSystem(host) {
         state:    state,
         images:   images
       };
-
-      prog.textContent = '⏳ Erstelle Datei...';
       const json     = JSON.stringify(backup);
       const blob     = new Blob([json], {type:'application/json'});
       const filename = `kickr_backup_${today()}.json`;
       const sizeMB   = (blob.size/1024/1024).toFixed(1);
+      const sizeKB   = Math.round(blob.size/1024);
 
-      // Try File System Access API (modern browsers + some Android WebViews)
-      // → lets user pick save location
+      // ── Methode 1: File System Access API (Desktop Chrome/Edge) ──
       if (window.showSaveFilePicker) {
         try {
           const fh = await window.showSaveFilePicker({
@@ -1580,33 +1579,57 @@ function renderSystem(host) {
           const ws = await fh.createWritable();
           await ws.write(blob);
           await ws.close();
-          prog.textContent = `✅ Backup gespeichert (${ids.length} Bilder, ${sizeMB} MB)`;
-          setTimeout(()=>prog.style.display='none', 5000);
+          prog.style.color = '#10b981';
+          prog.textContent = `✅ Gespeichert: ${filename} (${sizeMB} MB)`;
+          setTimeout(()=>{ prog.style.display='none'; prog.style.color='#6b7280'; }, 6000);
           return;
-        } catch(pickerErr) {
-          // User cancelled or picker not supported → fall through to download
-          if (pickerErr.name === 'AbortError') {
-            prog.textContent = 'ℹ️ Abgebrochen';
-            setTimeout(()=>prog.style.display='none', 2000);
-            return;
+        } catch(err) {
+          if (err.name === 'AbortError') {
+            prog.style.display='none'; return;
           }
+          // Nicht unterstützt → nächste Methode
         }
       }
 
-      // Fallback: standard download → Downloads folder
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href     = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      // ── Methode 2: Web Share API mit Datei (Android Chrome ≥ 75) ──
+      const shareFile = new File([blob], filename, {type:'application/json'});
+      if (navigator.canShare && navigator.canShare({ files: [shareFile] })) {
+        try {
+          await navigator.share({
+            title: 'Kickr Backup',
+            text: `${filename} (${sizeMB} MB)`,
+            files: [shareFile]
+          });
+          prog.style.color = '#10b981';
+          prog.textContent = `✅ Backup geteilt (${sizeMB} MB)`;
+          setTimeout(()=>{ prog.style.display='none'; prog.style.color='#6b7280'; }, 6000);
+          return;
+        } catch(err) {
+          if (err.name === 'AbortError') {
+            prog.style.display='none'; return;
+          }
+          // Fehlgeschlagen → nächste Methode
+        }
+      }
 
-      prog.textContent = `✅ Backup gespeichert: "${filename}" (${sizeMB} MB) → Downloads-Ordner`;
-      setTimeout(()=>prog.style.display='none', 6000);
+      // ── Methode 3: Sichtbarer Download-Link im UI (garantiert für Android WebView) ──
+      // Kein programmatischer Click nötig – User tippt selbst auf den Link
+      const dlUrl = URL.createObjectURL(blob);
+      prog.style.display = 'block';
+      prog.innerHTML = `
+        <div style="font-weight:700;color:#10b981;margin-bottom:8px">✅ Backup bereit – ${sizeMB} MB</div>
+        <div style="margin-bottom:10px;color:#374151;font-size:12px">Tippe auf den Button um die Datei zu speichern:</div>
+        <a href="${dlUrl}" download="${filename}"
+           style="display:block;background:#10b981;color:#fff;padding:14px 16px;border-radius:12px;font-weight:900;font-size:15px;text-align:center;text-decoration:none;margin-bottom:8px">
+          📥 ${filename} herunterladen
+        </a>
+        <div style="font-size:11px;color:#9ca3af">Falls nichts passiert: Link gedrückt halten → "Link speichern" oder "Herunterladen"</div>
+      `;
+      // Revoke Object URL after 10 minutes
+      setTimeout(() => URL.revokeObjectURL(dlUrl), 600000);
 
     } catch(err) {
+      prog.style.color = '#ef4444';
       prog.textContent = '❌ Export fehlgeschlagen: ' + err.message;
       console.error('Export error:', err);
     }
