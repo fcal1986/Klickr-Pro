@@ -1495,14 +1495,19 @@ function renderSystem(host) {
     <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Stellt ein vollständiges Backup wieder her. Alle aktuellen Daten werden überschrieben.</p>
     <button id="importData">📥 Backup importieren</button>
     <input type="file" id="importFile" accept=".json" style="display:none"/>
-    <div id="importProgress" style="display:none;margin-top:8px;font-size:13px;color:#6b7280;text-align:center"></div>
+    <div id="importProgress" style="display:none;margin-top:8px;padding:12px;background:#f0f4ff;border-radius:12px;font-size:13px;color:#374151;line-height:1.6"></div>
 
     <h3 style="margin:20px 0 10px">🔄 Reset</h3>
     <button class="danger" id="reset">🗑 Alles zurücksetzen</button>
 
+    <h3 style="margin:20px 0 10px">🐛 Debug-Mode</h3>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:8px">Zeigt verfügbare APIs und testet Export-Methoden.</p>
+    <button id="runDebug" style="background:#7c3aed">🔍 Debug starten</button>
+    <div id="debugOut" style="display:none;margin-top:10px;background:#1a1a2e;color:#a0f0a0;border-radius:12px;padding:14px;font-family:monospace;font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow-y:auto"></div>
+
     <h3 style="margin:20px 0 10px">ℹ️ App Info</h3>
     <div style="background:#f0f4ff;border-radius:12px;padding:12px;font-size:13px;color:#374151">
-      <div><strong>Version:</strong> 3.0</div>
+      <div><strong>Version:</strong> 4.0</div>
       <div style="margin-top:4px"><strong>Athleten:</strong> ${state.athletes.length}</div>
       <div style="margin-top:4px"><strong>Templates:</strong> ${state.templates.length}</div>
       <div style="margin-top:4px"><strong>Trainings:</strong> ${state.trainings.length}</div>
@@ -1741,6 +1746,119 @@ function renderSystem(host) {
     try{indexedDB.deleteDatabase(DB_NAME);}catch{}
     try{indexedDB.deleteDatabase(IMG_DB_NAME);}catch{}
     location.reload();
+  };
+
+  // ── Debug Mode ──
+  $('runDebug').onclick = async () => {
+    const out = $('debugOut');
+    out.style.display = 'block';
+    out.textContent = '';
+
+    const log = (msg, color) => {
+      const line = document.createElement('div');
+      line.textContent = msg;
+      if (color) line.style.color = color;
+      out.appendChild(line);
+      out.scrollTop = out.scrollHeight;
+    };
+
+    const ok  = msg => log('✅ ' + msg, '#a0f0a0');
+    const err = msg => log('❌ ' + msg, '#f87171');
+    const inf = msg => log('ℹ️  ' + msg, '#93c5fd');
+    const sep = ()  => log('─────────────────────────', '#444');
+
+    log('🐛 KICKR DEBUG v4.0', '#f9d94e');
+    log(new Date().toLocaleString('de-DE'), '#9ca3af');
+    sep();
+
+    // ── Browser / WebView Info ──
+    inf('USER AGENT:');
+    log(navigator.userAgent, '#e0e0e0');
+    sep();
+
+    // ── API Availability ──
+    log('📡 API VERFÜGBARKEIT', '#f9d94e');
+    window.showSaveFilePicker   ? ok('showSaveFilePicker') : err('showSaveFilePicker (nicht verfügbar)');
+    navigator.share             ? ok('navigator.share') : err('navigator.share (nicht verfügbar)');
+    navigator.canShare          ? ok('navigator.canShare') : err('navigator.canShare (nicht verfügbar)');
+    window.URL?.createObjectURL ? ok('URL.createObjectURL') : err('URL.createObjectURL (nicht verfügbar)');
+    window.Blob                 ? ok('Blob') : err('Blob (nicht verfügbar)');
+    window.File                 ? ok('File') : err('File (nicht verfügbar)');
+    window.FileReader           ? ok('FileReader') : err('FileReader (nicht verfügbar)');
+    window.indexedDB            ? ok('indexedDB') : err('indexedDB (nicht verfügbar)');
+    window.localStorage         ? ok('localStorage') : err('localStorage (nicht verfügbar)');
+    sep();
+
+    // ── Test: canShare with file ──
+    log('🔗 SHARE-FILE TEST', '#f9d94e');
+    if (navigator.canShare) {
+      try {
+        const testBlob = new Blob(['test'], {type:'application/json'});
+        const testFile = new File([testBlob], 'test.json', {type:'application/json'});
+        const canShare = navigator.canShare({ files: [testFile] });
+        canShare ? ok('canShare({ files }) = true → Share mit Datei möglich') : err('canShare({ files }) = false');
+      } catch(e) { err('canShare Test Fehler: ' + e.message); }
+    } else {
+      err('navigator.canShare nicht vorhanden');
+    }
+    sep();
+
+    // ── Test: Blob + ObjectURL ──
+    log('📦 BLOB / OBJECT-URL TEST', '#f9d94e');
+    try {
+      const testBlob = new Blob([JSON.stringify({test:true})], {type:'application/json'});
+      inf('Blob erstellt: ' + testBlob.size + ' bytes');
+      const url = URL.createObjectURL(testBlob);
+      inf('ObjectURL: ' + url.substring(0, 60) + '...');
+      URL.revokeObjectURL(url);
+      ok('Blob + ObjectURL funktioniert');
+    } catch(e) { err('Blob/ObjectURL Fehler: ' + e.message); }
+    sep();
+
+    // ── Test: <a download> click ──
+    log('⬇️  DOWNLOAD-LINK TEST (Mini-Datei)', '#f9d94e');
+    try {
+      const testBlob = new Blob(['{"debug":true}'], {type:'application/json'});
+      const url = URL.createObjectURL(testBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'kickr_debug_test.json';
+      a.style.cssText = 'display:block;background:#3b82f6;color:#fff;padding:10px;border-radius:8px;text-align:center;text-decoration:none;margin:8px 0;font-weight:700';
+      a.textContent = '⬇️ kickr_debug_test.json (Testdatei) – hier tippen!';
+      out.appendChild(a);
+      inf('Link erzeugt. Tippe oben auf den blauen Link – erscheint die Datei in Downloads?');
+      setTimeout(() => URL.revokeObjectURL(url), 300000);
+    } catch(e) { err('Download-Link Fehler: ' + e.message); }
+    sep();
+
+    // ── Test: IDB State ──
+    log('🗄️  INDEXEDDB TEST', '#f9d94e');
+    try {
+      const db = await openDB();
+      ok('App-DB (' + DB_NAME + ') erreichbar');
+    } catch(e) { err('App-DB Fehler: ' + e.message); }
+    try {
+      const db = await openImgDB();
+      ok('Bild-DB (' + IMG_DB_NAME + ') erreichbar');
+    } catch(e) { err('Bild-DB Fehler: ' + e.message); }
+    sep();
+
+    // ── State Summary ──
+    log('📊 STATE ÜBERSICHT', '#f9d94e');
+    inf('Athleten: ' + state.athletes.length);
+    inf('Templates: ' + state.templates.length);
+    inf('Trainings: ' + state.trainings.length);
+    const imgIds = new Set();
+    state.athletes.forEach(a => { if(a.photoId) imgIds.add(a.photoId); });
+    state.templates.forEach(t => t.exercises?.forEach(e => (e.customImgIds||[]).forEach(id=>imgIds.add(id))));
+    state.trainings.forEach(t => t.exercises?.forEach(e => (e.customImgIds||[]).forEach(id=>imgIds.add(id))));
+    inf('Bild-IDs gesamt: ' + imgIds.size);
+    try {
+      const lsData = localStorage.getItem(LS_KEY);
+      inf('localStorage Größe: ' + (lsData ? Math.round(lsData.length/1024) + ' KB' : 'leer'));
+    } catch(e) { err('localStorage nicht lesbar: ' + e.message); }
+    sep();
+
+    log('✅ Debug abgeschlossen – Screenshot machen und schicken!', '#f9d94e');
   };
 }
 
