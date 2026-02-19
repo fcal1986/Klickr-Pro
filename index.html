@@ -1,0 +1,1500 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>⚡ Kickr Training PRO</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#3b82f6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,sans-serif;background:linear-gradient(180deg,#f8faff,#e0e9ff);min-height:100vh}
+    header{position:fixed;top:0;left:0;right:0;background:#fff;border-bottom:2px solid #e5e7eb;z-index:100;padding:10px 16px}
+    h1{font-size:17px;font-weight:900}
+    .sub{font-size:11px;color:#6b7280;margin-top:2px}
+    .athletes{position:fixed;top:54px;left:0;right:0;display:flex;gap:10px;overflow-x:auto;padding:8px 12px;background:#fff;border-bottom:2px solid #e5e7eb;z-index:100;-webkit-overflow-scrolling:touch}
+    .athletes::-webkit-scrollbar{height:3px}
+    .athletes::-webkit-scrollbar-thumb{background:#3b82f6;border-radius:999px}
+    .ath{text-align:center;flex:0 0 auto;cursor:pointer;min-width:60px}
+    .ath img{width:48px;height:48px;border-radius:50%;border:3px solid #e5e7eb;margin-bottom:4px;object-fit:cover;display:block;margin-left:auto;margin-right:auto}
+    .ath.active img{border-color:#10b981}
+    .ath-name{font-size:10px;font-weight:700;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    main{max-width:1100px;margin:0 auto;padding:16px;padding-top:120px;padding-bottom:100px}
+    .card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px}
+    button{background:#3b82f6;color:#fff;border:none;padding:12px 20px;border-radius:12px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;transition:transform .2s;min-height:48px;font-size:15px}
+    button:active{transform:scale(.97)}
+    button.danger{background:#ef4444}
+    button.small{padding:8px 16px;width:auto;min-height:40px;font-size:14px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .row button{flex:1;min-width:140px}
+    .scroll-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+    .scroll-row::-webkit-scrollbar{height:6px}
+    .scroll-row::-webkit-scrollbar-thumb{background:#3b82f6;border-radius:999px}
+    .tr-card{flex:0 0 auto;width:200px;border:3px solid #e5e7eb;border-radius:16px;overflow:hidden;cursor:pointer;position:relative;transition:all .2s}
+    .tr-card.active{border-color:#3b82f6;box-shadow:0 6px 20px rgba(59,130,246,.3)}
+    .tr-card img{width:100%;height:100px;object-fit:cover;background:#f0f4ff}
+    .tr-info{padding:12px}
+    .tr-title{font-weight:900;font-size:14px;margin-bottom:4px}
+    .tr-date{font-size:12px;color:#6b7280}
+    .del-btn{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#ef4444;border:none;font-size:16px;padding:0;display:flex;align-items:center;justify-content:center;z-index:10;margin:0;min-height:32px}
+    .ex-chip{display:inline-flex;padding:10px 16px;background:#f0f4ff;border:2px solid #e5e7eb;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;margin:4px;min-height:44px;align-items:center;gap:8px;transition:all .2s}
+    .ex-chip.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+    .timer-big{font-size:48px;font-weight:900;text-align:center;color:#3b82f6;font-family:ui-monospace,monospace;margin:20px 0}
+    .big-input{font-size:32px;font-weight:900;text-align:center;padding:20px;background:#f0f4ff;border:3px solid #3b82f6;min-height:80px;border-radius:16px}
+    label{display:block;font-size:12px;font-weight:700;color:#6b7280;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.5px}
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:16px 0}
+    .stat-box{background:#f0f4ff;padding:12px;border-radius:12px;text-align:center}
+    .stat-val{font-size:24px;font-weight:900;color:#3b82f6}
+    .stat-lbl{font-size:11px;color:#6b7280;margin-top:4px;font-weight:700}
+    .bench{background:#f0f4ff;border:2px solid #3b82f6;border-radius:16px;padding:16px;margin:16px 0}
+    .bench-item{display:flex;align-items:center;gap:12px;padding:10px;background:#fff;border-radius:12px;margin-bottom:8px;border:2px solid #e5e7eb}
+    .bench-item.me{border-color:#3b82f6;background:#dbeafe}
+    .bench-rank{font-size:18px;font-weight:900;min-width:24px;color:#6b7280}
+    .bench-ava{width:36px;height:36px;border-radius:50%;object-fit:cover}
+    .bench-name{flex:1;font-weight:700;font-size:14px}
+    .bench-val{font-size:20px;font-weight:900;color:#3b82f6}
+    .best-day{background:#d1fae5;border:2px solid #10b981;border-radius:16px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+    .best-icon{font-size:32px}
+    .best-info{flex:1}
+    .best-title{font-weight:900;font-size:16px;color:#10b981}
+    .best-sub{font-size:12px;color:#6b7280;margin-top:4px}
+    .best-val{font-size:28px;font-weight:900;color:#10b981}
+    .sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;font-weight:900;font-size:16px}
+    input,select{width:100%;padding:12px;border:2px solid #e5e7eb;border-radius:12px;font-size:16px;margin-top:8px;background:#fff;color:#1a2332}
+    nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #e5e7eb;display:flex;justify-content:space-around;padding:8px 0;padding-bottom:calc(8px + env(safe-area-inset-bottom));z-index:100}
+    .nav-item{flex:1;text-align:center;padding:8px;cursor:pointer;font-size:11px;font-weight:700;color:#6b7280;transition:all .2s;user-select:none}
+    .nav-item:active{transform:scale(.95)}
+    .nav-item.active{color:#3b82f6}
+    .nav-icon{font-size:24px;margin-bottom:4px}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+    .modal.show{display:flex}
+    .modal-content{background:#fff;border-radius:20px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:modalIn .3s ease}
+    @keyframes modalIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .modal-title{font-size:20px;font-weight:900;color:#1a2332}
+    .modal-close{width:36px;height:36px;border-radius:50%;background:#f0f4ff;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280}
+    .tpl-option{background:#f0f4ff;border:2px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px;cursor:pointer;transition:all .2s;display:flex;justify-content:space-between;align-items:center}
+    .tpl-option.selected{background:#3b82f6;color:#fff;border-color:#3b82f6}
+    .tpl-name{font-weight:900;font-size:16px;margin-bottom:4px}
+    .tpl-info{font-size:12px;opacity:.8}
+    .date-input{font-size:16px;padding:14px;border-radius:12px;border:2px solid #e5e7eb;width:100%;background:#f0f4ff;font-weight:700;margin-top:8px}
+
+    /* ── FEATURE A: Athleten-Foto ── */
+    .ath-photo-wrap{position:relative;width:100px;height:100px;margin:12px auto}
+    .ath-photo-wrap img{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #e5e7eb;display:block}
+    .ath-photo-btn{position:absolute;bottom:0;right:0;width:32px;height:32px;border-radius:50%;background:#3b82f6;border:2px solid #fff;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0;min-height:32px;padding:0}
+
+    /* ── FEATURE B: Übungsbilder ── */
+    .ex-img-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .ex-thumb-wrap{position:relative;width:80px;height:80px;border-radius:12px;overflow:hidden;border:2px solid #e5e7eb;flex-shrink:0}
+    .ex-thumb-wrap img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+    .ex-thumb-del{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;background:#ef4444;border:none;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0;min-height:22px;padding:0;line-height:1}
+    .ex-add-photo-btn{width:80px;height:80px;border-radius:12px;border:2px dashed #3b82f6;background:#f0f4ff;color:#3b82f6;font-size:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0;min-height:80px;padding:0;flex-shrink:0}
+
+    /* Exercise photos in training view */
+    .ex-photo-row{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .ex-photo-thumb{width:80px;height:80px;border-radius:12px;object-fit:cover;cursor:pointer;border:2px solid #e5e7eb;flex-shrink:0;transition:.15s}
+    .ex-photo-thumb:active{transform:scale(.94)}
+
+    /* ── LIGHTBOX ── */
+    #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+    #lightbox.show{display:flex}
+    #lightbox-img{max-width:96vw;max-height:78vh;border-radius:12px;object-fit:contain}
+    .lb-close{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.18);border:none;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0;min-height:44px;padding:0;z-index:1}
+    .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.18);border:none;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0;min-height:44px;padding:0}
+    #lb-prev{left:12px}
+    #lb-next{right:12px}
+    .lb-dots{display:flex;gap:10px;margin-top:16px}
+    .lb-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35);cursor:pointer;transition:.2s;border:none;padding:0;min-height:0}
+    .lb-dot.active{background:#fff;transform:scale(1.25)}
+
+    /* ── FEATURE 2: Streak Banner ── */
+    .streak-banner{background:linear-gradient(135deg,#f59e0b,#f97316);border-radius:16px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px;color:#fff;box-shadow:0 4px 14px rgba(249,115,22,.3)}
+    .streak-fire{font-size:36px;line-height:1}
+    .streak-info{flex:1}
+    .streak-title{font-weight:900;font-size:17px}
+    .streak-sub{font-size:12px;opacity:.85;margin-top:3px}
+    .week-goal{background:#fff;border-radius:16px;padding:14px 18px;margin-bottom:16px;border:2px solid #e5e7eb}
+    .week-goal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:900;font-size:15px}
+    .week-dots{display:flex;gap:8px}
+    .week-dot{width:32px;height:32px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#6b7280;transition:.2s}
+    .week-dot.done{background:#10b981;color:#fff;box-shadow:0 2px 8px rgba(16,185,129,.4)}
+    .week-dot.today{background:#3b82f6;color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.4)}
+
+    /* ── FEATURE 4: Drag & Drop ── */
+    .ex-drag-item{background:#f0f4ff;padding:12px;border-radius:12px;margin-bottom:8px;cursor:grab;user-select:none;transition:box-shadow .15s,opacity .15s}
+    .ex-drag-item:active{cursor:grabbing}
+    .ex-drag-item.dragging{opacity:.4;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+    .ex-drag-item.drag-over{box-shadow:0 0 0 3px #3b82f6;background:#dbeafe}
+    .drag-handle{font-size:20px;color:#9ca3af;cursor:grab;padding:0 8px;flex-shrink:0}
+
+    /* ── FEATURE 11: Duell-Screen ── */
+    .duel-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+    .duel-ath{background:#f0f4ff;border:3px solid #e5e7eb;border-radius:16px;padding:14px;text-align:center;cursor:pointer;transition:.2s}
+    .duel-ath.selected{border-color:#3b82f6;background:#dbeafe}
+    .duel-ath img{width:56px;height:56px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;border:3px solid #e5e7eb}
+    .duel-ath.selected img{border-color:#3b82f6}
+    .duel-ath-name{font-weight:900;font-size:13px}
+    .duel-vs{text-align:center;font-size:28px;font-weight:900;color:#6b7280;padding:8px 0}
+    .duel-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px;padding:10px;background:#f0f4ff;border-radius:12px}
+    .duel-val{font-size:22px;font-weight:900;text-align:center}
+    .duel-val.winner{color:#10b981}
+    .duel-val.loser{color:#ef4444;font-size:18px}
+    .duel-ex-name{text-align:center;font-size:11px;font-weight:700;color:#6b7280;padding:0 4px}
+    .duel-crown{font-size:18px;text-align:center;min-width:24px}
+
+    /* ── FEATURE 13: Trainings-Notiz ── */
+    .tr-note-badge{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    /* ── FEATURE 18: Swipe-to-Repeat Feedback ── */
+    .swipe-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(16,185,129,.92);color:#fff;padding:10px 18px;border-radius:12px;font-weight:900;font-size:15px;pointer-events:none;z-index:50;opacity:0;transition:opacity .2s}
+    .swipe-hint.show{opacity:1}
+    .ex-entry-card{position:relative;background:#f0f4ff;padding:12px;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:transform .15s}
+    .ex-entry-card.swiping{background:#d1fae5}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 id="title">⚡ Kickr Training PRO</h1>
+  <div class="sub" id="subtitle">Lade...</div>
+</header>
+
+<div class="athletes" id="athletes"></div>
+<main id="main"></main>
+
+<nav>
+  <div class="nav-item" data-tab="tracking"><div class="nav-icon">🏋️</div>Training</div>
+  <div class="nav-item" data-tab="statistics"><div class="nav-icon">📊</div>Statistik</div>
+  <div class="nav-item" data-tab="duel"><div class="nav-icon">⚔️</div>Duell</div>
+  <div class="nav-item" data-tab="templates"><div class="nav-icon">📋</div>Templates</div>
+  <div class="nav-item" data-tab="athletes"><div class="nav-icon">👥</div>Athleten</div>
+  <div class="nav-item" data-tab="system"><div class="nav-icon">⚙️</div>System</div>
+</nav>
+
+<!-- Modal: New Training -->
+<div class="modal" id="newTrainingModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">➕ Neues Training</div>
+      <button class="modal-close" id="closeNewTraining">✕</button>
+    </div>
+    <label>Template wählen</label>
+    <div id="templateOptions"></div>
+    <label style="margin-top:16px">Datum</label>
+    <input type="date" class="date-input" id="newTrainingDate"/>
+    <button id="confirmNewTraining" style="margin-top:20px">Training erstellen</button>
+  </div>
+</div>
+
+<!-- Modal: Edit Training Date -->
+<div class="modal" id="editDateModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">📅 Datum ändern</div>
+      <button class="modal-close" id="closeEditDate">✕</button>
+    </div>
+    <label>Training</label>
+    <div id="editDateTrainingName" style="font-weight:900;font-size:18px;margin:8px 0 16px;color:#3b82f6"></div>
+    <label>Neues Datum</label>
+    <input type="date" class="date-input" id="editDateInput"/>
+    <button id="confirmEditDate" style="margin-top:20px">Datum speichern</button>
+  </div>
+</div>
+
+<!-- ── LIGHTBOX ── -->
+<div id="lightbox">
+  <button class="lb-close" id="lbClose">✕</button>
+  <button class="lb-nav" id="lb-prev">‹</button>
+  <img id="lightbox-img" src="" alt="Übungsbild"/>
+  <button class="lb-nav" id="lb-next">›</button>
+  <div class="lb-dots" id="lb-dots"></div>
+</div>
+
+<script>
+// ================================================================
+// KICKR TRAINING PRO v3.0
+// Feature A: Athleten-Foto aus Galerie
+// Feature B: Übungsbilder in Templates + Lightbox
+// Feature 2: Trainings-Streak & Wochenziel
+// Feature 4: Drag & Drop Übungsreihenfolge
+// Feature 11: Athleten-Duell-Screen
+// Feature 13: Trainings-Notiz
+// Feature 18: Swipe-to-Repeat
+// ================================================================
+
+const $ = id => document.getElementById(id);
+const $$ = s => document.querySelectorAll(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2,5);
+
+const PHOTOS = [
+  {id:'e1',label:'🏃 Hürde', url:'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&h=300&fit=crop'},
+  {id:'e2',label:'🤸 Jump',  url:'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop'},
+  {id:'e3',label:'💪 Step',  url:'https://images.unsplash.com/photo-1434682772747-f16d3ea162c3?w=400&h=300&fit=crop'},
+  {id:'e4',label:'⚡ Sprint',url:'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400&h=300&fit=crop'}
+];
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100';
+
+// ================================================================
+// IMAGE STORAGE – separate IndexedDB for blobs (no quota clash)
+// ================================================================
+const IMG_DB_NAME = 'kickr_images_v1';
+let _imgDb = null;
+
+function openImgDB() {
+  return new Promise((resolve, reject) => {
+    if (_imgDb) { resolve(_imgDb); return; }
+    const req = indexedDB.open(IMG_DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('thumbs')) db.createObjectStore('thumbs', {keyPath:'id'});
+      if (!db.objectStoreNames.contains('full'))   db.createObjectStore('full',   {keyPath:'id'});
+    };
+    req.onsuccess = e => { _imgDb = e.target.result; resolve(_imgDb); };
+    req.onerror   = e => reject(e);
+  });
+}
+
+async function imgSave(store, id, dataUrl) {
+  const db = await openImgDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put({id, data: dataUrl});
+    tx.oncomplete = res; tx.onerror = rej;
+  });
+}
+
+async function imgLoad(store, id) {
+  try {
+    const db = await openImgDB();
+    return new Promise(res => {
+      const req = db.transaction(store,'readonly').objectStore(store).get(id);
+      req.onsuccess = () => res(req.result?.data || null);
+      req.onerror   = () => res(null);
+    });
+  } catch { return null; }
+}
+
+async function imgDelete(store, id) {
+  try {
+    const db = await openImgDB();
+    return new Promise(res => {
+      const tx = db.transaction(store,'readwrite');
+      tx.objectStore(store).delete(id);
+      tx.oncomplete = res; tx.onerror = res;
+    });
+  } catch {}
+}
+
+// In-memory cache – avoids repeated IDB reads on every render
+const _imgCache = new Map();
+
+async function cachedThumb(id) {
+  if (!id) return null;
+  if (_imgCache.has(id)) return _imgCache.get(id);
+  const data = await imgLoad('thumbs', id);
+  if (data) _imgCache.set(id, data);
+  return data;
+}
+
+// ================================================================
+// IMAGE PROCESSING – square crop + resize + WebP compress
+// ================================================================
+function processImage(file, thumbPx = 128, fullPx = 900) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload  = evt => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload  = () => {
+        const side = Math.min(img.width, img.height);
+        const sx   = (img.width  - side) / 2;
+        const sy   = (img.height - side) / 2;
+        const draw = (px) => {
+          const c = document.createElement('canvas');
+          c.width = c.height = px;
+          c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, px, px);
+          // Try WebP, fall back to JPEG
+          const data = c.toDataURL('image/webp', 0.82);
+          return data.startsWith('data:image/webp') ? data : c.toDataURL('image/jpeg', 0.82);
+        };
+        resolve({ thumb: draw(thumbPx), full: draw(fullPx) });
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ================================================================
+// APP STATE STORAGE (IndexedDB primary + localStorage fallback)
+// ================================================================
+const DB_NAME   = 'kickr_pro_db';
+const STORE_KEY = 'app_state';
+const LS_KEY    = 'kickr';
+let _db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (_db) { resolve(_db); return; }
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      if (!e.target.result.objectStoreNames.contains('state'))
+        e.target.result.createObjectStore('state', {keyPath:'id'});
+    };
+    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+    req.onerror   = e => reject(e);
+  });
+}
+async function saveToIDB(obj) {
+  try {
+    const db = await openDB();
+    return new Promise((res,rej) => {
+      const tx = db.transaction('state','readwrite');
+      tx.objectStore('state').put({id:STORE_KEY, data:obj, ts:Date.now()});
+      tx.oncomplete=res; tx.onerror=rej;
+    });
+  } catch {}
+}
+async function loadFromIDB() {
+  try {
+    const db = await openDB();
+    return new Promise(res => {
+      const req = db.transaction('state','readonly').objectStore('state').get(STORE_KEY);
+      req.onsuccess = () => res(req.result?.data || null);
+      req.onerror   = () => res(null);
+    });
+  } catch { return null; }
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+  saveToIDB(state);
+}
+async function loadState() {
+  const idb = await loadFromIDB();
+  if (idb) return idb;
+  try { const r=localStorage.getItem(LS_KEY); if(r) return JSON.parse(r); } catch {}
+  return {};
+}
+
+// ================================================================
+// LIGHTBOX
+// ================================================================
+let _lbImgs  = [];
+let _lbIndex = 0;
+
+async function openLightbox(imgIds, startIdx = 0) {
+  if (!imgIds?.length) return;
+  _lbImgs  = imgIds;
+  _lbIndex = startIdx;
+  await _lbRender();
+  $('lightbox').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+async function _lbRender() {
+  const id   = _lbImgs[_lbIndex];
+  const full = await imgLoad('full', id) || await cachedThumb(id) || '';
+  $('lightbox-img').src = full;
+
+  const dots = $('lb-dots');
+  dots.innerHTML = _lbImgs.map((_,i) =>
+    `<button class="lb-dot ${i===_lbIndex?'active':''}" data-i="${i}"></button>`
+  ).join('');
+  $$('.lb-dot').forEach(d => {
+    d.onclick = async () => { _lbIndex = +d.dataset.i; await _lbRender(); };
+  });
+
+  $('lb-prev').style.display = _lbImgs.length > 1 ? 'flex' : 'none';
+  $('lb-next').style.display = _lbImgs.length > 1 ? 'flex' : 'none';
+}
+
+function closeLightbox() {
+  $('lightbox').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+$('lbClose').onclick  = closeLightbox;
+$('lb-prev').onclick  = async () => { _lbIndex = (_lbIndex-1+_lbImgs.length)%_lbImgs.length; await _lbRender(); };
+$('lb-next').onclick  = async () => { _lbIndex = (_lbIndex+1)%_lbImgs.length; await _lbRender(); };
+$('lightbox').onclick = e => { if (e.target === $('lightbox') || e.target === $('lightbox-img')) {} };
+
+// Swipe on lightbox
+let _lbSX = 0;
+$('lightbox').addEventListener('touchstart', e => { _lbSX = e.touches[0].clientX; }, {passive:true});
+$('lightbox').addEventListener('touchend',   async e => {
+  const dx = e.changedTouches[0].clientX - _lbSX;
+  if (Math.abs(dx) > 50 && _lbImgs.length > 1) {
+    _lbIndex = dx < 0 ? (_lbIndex+1)%_lbImgs.length : (_lbIndex-1+_lbImgs.length)%_lbImgs.length;
+    await _lbRender();
+  }
+}, {passive:true});
+
+// ================================================================
+// FEATURE 2 – STREAK & WOCHENZIEL
+// ================================================================
+function calcStreak() {
+  // Collect unique training dates for active athlete
+  const ath = state.athletes.find(a=>a.id===state.athId);
+  if (!ath) return {streak:0, weekDone:0, weekGoal:4};
+
+  const days = new Set();
+  state.trainings.forEach(tr => {
+    if (!tr.date) return;
+    let hasData = false;
+    tr.exercises?.forEach(ex => {
+      if ((tr.records?.[`${ath.id}_${ex.id}`]||[]).length) hasData = true;
+    });
+    if (hasData) days.add(tr.date);
+  });
+
+  // Sort descending
+  const sorted = [...days].sort((a,b)=>b.localeCompare(a));
+  if (!sorted.length) return {streak:0, weekDone:0, weekGoal:4};
+
+  // Count consecutive days streak
+  let streak = 0;
+  const t = new Date(); t.setHours(12,0,0,0);
+  for (let i = 0; i < sorted.length; i++) {
+    const d = new Date(sorted[i]+'T12:00');
+    const diff = Math.round((t - d) / 86400000);
+    if (diff === i || diff === i+1) streak++;
+    else break;
+  }
+
+  // Week progress (Mon–Sun)
+  const now = new Date(); now.setHours(12,0,0,0);
+  const dow = (now.getDay()+6)%7; // 0=Mon
+  const weekDone = [...days].filter(d => {
+    const dd = new Date(d+'T12:00');
+    const diff = Math.round((now - dd) / 86400000);
+    return diff >= 0 && diff <= dow;
+  }).length;
+
+  const weekGoal = state.weekGoal || 4;
+  return {streak, weekDone, weekGoal, daysDone: days};
+}
+
+function renderStreakBanner() {
+  const {streak, weekDone, weekGoal} = calcStreak();
+  const now = new Date();
+  const dow = (now.getDay()+6)%7; // 0=Mon
+
+  let html = '';
+
+  // Streak banner
+  if (streak >= 2) {
+    const msg = streak >= 7 ? `${streak} Tage Streak! Unglaublich! 🚀` :
+                streak >= 5 ? `${streak} Tage in Folge! Weiter so!` :
+                `${streak} Tage in Folge! 💪`;
+    html += `<div class="streak-banner">
+      <div class="streak-fire">🔥</div>
+      <div class="streak-info">
+        <div class="streak-title">${msg}</div>
+        <div class="streak-sub">Trainiere heute um den Streak zu halten!</div>
+      </div>
+    </div>`;
+  }
+
+  // Week goal
+  const days = ['M','D','M','D','F','S','S'];
+  const dotHtml = days.map((d,i) => {
+    const cls = i < dow ? (i < weekDone ? 'done' : '') : (i === dow ? 'today' : '');
+    return `<div class="week-dot ${cls}">${cls==='done'?'✓':d}</div>`;
+  }).join('');
+
+  const pct = Math.min(100, Math.round(weekDone/weekGoal*100));
+  html += `<div class="week-goal">
+    <div class="week-goal-head">
+      <span>📅 Diese Woche: ${weekDone}/${weekGoal} Trainings</span>
+      <span style="color:${weekDone>=weekGoal?'#10b981':'#6b7280'};font-size:13px">${pct}%</span>
+    </div>
+    <div class="week-dots">${dotHtml}</div>
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+      <span style="font-size:12px;color:#6b7280">Wochenziel:</span>
+      <button class="small" id="goalMinus" style="width:36px;min-height:36px;padding:0;font-size:18px">−</button>
+      <span style="font-weight:900;font-size:18px;min-width:20px;text-align:center">${weekGoal}</span>
+      <button class="small" id="goalPlus" style="width:36px;min-height:36px;padding:0;font-size:18px">+</button>
+    </div>
+  </div>`;
+  return html;
+}
+
+// ================================================================
+// FEATURE 11 – DUELL-ANSICHT
+// ================================================================
+let duelState = {a1: '', a2: ''};
+
+function renderDuel(host) {
+  const actives = state.athletes.filter(a => state.activeIds.includes(a.id));
+
+  // Athlete selector
+  let html = `<div class="card"><h2>⚔️ Athleten-Duell</h2>
+    <p style="color:#6b7280;margin:8px 0 14px">Wähle zwei Athleten zum direkten Vergleich</p>
+    <div class="duel-grid">`;
+  actives.forEach(a => {
+    const sel1 = duelState.a1 === a.id ? 'selected' : '';
+    const sel2 = duelState.a2 === a.id ? 'selected' : '';
+    const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
+    html += `<div class="duel-ath ${sel1||sel2}" data-duel-pick="${a.id}">
+      <img src="${src}" data-lazy-duel="${a.photoId||''}"/>
+      <div class="duel-ath-name">${esc(a.name)}</div>
+      ${sel1?'<div style="font-size:10px;color:#3b82f6;font-weight:700">Athlet A</div>':''}
+      ${sel2&&!sel1?'<div style="font-size:10px;color:#f97316;font-weight:700">Athlet B</div>':''}
+    </div>`;
+  });
+  html += `</div>`;
+
+  if (duelState.a1 && duelState.a2 && duelState.a1 !== duelState.a2) {
+    const a1 = state.athletes.find(a=>a.id===duelState.a1);
+    const a2 = state.athletes.find(a=>a.id===duelState.a2);
+    if (a1 && a2) {
+      // Collect all exercise titles
+      const exTitles = new Set();
+      state.trainings.forEach(tr => tr.exercises?.forEach(ex => exTitles.add(ex.title)));
+
+      let a1wins = 0, a2wins = 0;
+      let rowsHtml = '';
+
+      exTitles.forEach(title => {
+        const getBest = (athId) => {
+          let best = 0;
+          state.trainings.forEach(tr => {
+            tr.exercises?.forEach(ex => {
+              if (ex.title !== title) return;
+              const recs = tr.records?.[`${athId}_${ex.id}`] || [];
+              recs.forEach(r => {
+                let v = 0;
+                if (ex.type==='reps') v = parseFloat(r.value)||0;
+                else if (ex.type==='lr') v = (parseFloat(r.left)||0)+(parseFloat(r.right)||0);
+                else v = parseFloat(r.value)||0;
+                if (v > best) best = v;
+              });
+            });
+          });
+          return best;
+        };
+
+        const v1 = getBest(duelState.a1);
+        const v2 = getBest(duelState.a2);
+        if (!v1 && !v2) return;
+
+        const w1 = v1 > v2, w2 = v2 > v1;
+        if (w1) a1wins++; if (w2) a2wins++;
+
+        rowsHtml += `<div class="duel-row">
+          <div class="duel-val ${w1?'winner':v2?'loser':''}">${v1||'–'}</div>
+          <div class="duel-ex-name">${esc(title)}<br><div class="duel-crown">${w1?'👑':w2?'👑':''}</div></div>
+          <div class="duel-val ${w2?'winner':v1?'loser':''}">${v2||'–'}</div>
+        </div>`;
+      });
+
+      const src1 = _imgCache.get(a1.photoId) || a1.photo || DEFAULT_AVATAR;
+      const src2 = _imgCache.get(a2.photoId) || a2.photo || DEFAULT_AVATAR;
+
+      html += `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin:16px 0">
+        <div style="text-align:center">
+          <img src="${src1}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:3px solid #3b82f6"/>
+          <div style="font-weight:900;font-size:13px;margin-top:6px;color:#3b82f6">${esc(a1.name)}</div>
+          <div style="font-size:28px;font-weight:900;color:${a1wins>a2wins?'#10b981':'#6b7280'}">${a1wins} 🏆</div>
+        </div>
+        <div class="duel-vs">VS</div>
+        <div style="text-align:center">
+          <img src="${src2}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:3px solid #f97316"/>
+          <div style="font-weight:900;font-size:13px;margin-top:6px;color:#f97316">${esc(a2.name)}</div>
+          <div style="font-size:28px;font-weight:900;color:${a2wins>a1wins?'#10b981':'#6b7280'}">${a2wins} 🏆</div>
+        </div>
+      </div>
+      ${rowsHtml || '<p style="color:#6b7280;text-align:center;padding:12px">Keine gemeinsamen Übungen gefunden</p>'}`;
+    }
+  } else if (!duelState.a1 || !duelState.a2) {
+    html += `<p style="color:#6b7280;text-align:center;padding:16px">Wähle zwei Athleten aus</p>`;
+  }
+
+  html += `</div>`;
+  host.innerHTML = html;
+
+  // Lazy-load duel avatars
+  $$('[data-lazy-duel]').forEach(async img => {
+    const id = img.getAttribute('data-lazy-duel');
+    if (id && !_imgCache.has(id)) { const src = await cachedThumb(id); if(src) img.src=src; }
+  });
+
+  $$('[data-duel-pick]').forEach(el => {
+    el.onclick = () => {
+      const id = el.getAttribute('data-duel-pick');
+      if (!duelState.a1 || (duelState.a1 && duelState.a2)) {
+        duelState = {a1: id, a2: ''};
+      } else if (duelState.a1 === id) {
+        duelState.a1 = '';
+      } else {
+        duelState.a2 = id;
+      }
+      renderDuel(host);
+    };
+  });
+}
+
+// ================================================================
+// FEATURE 18 – SWIPE-TO-REPEAT (letzte Werte übernehmen)
+// ================================================================
+function getLastRecord(tr, ath, ex) {
+  const key = `${ath.id}_${ex.id}`;
+  const recs = tr.records[key] || [];
+  return recs.length ? recs[recs.length-1] : null;
+}
+
+function bindSwipeToRepeat(tr, ath, ex) {
+  const cards = $$('.ex-entry-card');
+  cards.forEach(card => {
+    let startX = 0, dx = 0;
+    const hint = card.querySelector('.swipe-hint');
+
+    card.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+    }, {passive:true});
+
+    card.addEventListener('touchmove', e => {
+      dx = e.touches[0].clientX - startX;
+      if (dx > 20) { card.style.transform = `translateX(${Math.min(dx,80)}px)`; if(hint) hint.classList.add('show'); }
+      else { card.style.transform=''; if(hint) hint.classList.remove('show'); }
+    }, {passive:true});
+
+    card.addEventListener('touchend', () => {
+      card.style.transform = '';
+      if (hint) hint.classList.remove('show');
+      if (dx > 60) {
+        const last = getLastRecord(tr, ath, ex);
+        if (!last) { showToast('⚠️ Kein vorheriger Eintrag'); return; }
+        const key = `${ath.id}_${ex.id}`;
+        if (!tr.records[key]) tr.records[key] = [];
+        tr.records[key].push({...last, ts: new Date().toISOString()});
+        save(); render();
+        showToast('✅ Letzter Wert wiederholt!');
+      }
+      dx = 0;
+    });
+  });
+}
+
+// ================================================================
+// TOAST
+// ================================================================
+function showToast(msg, ms=2500) {
+  document.querySelector('.k-toast')?.remove();
+  const t = document.createElement('div');
+  t.className = 'k-toast';
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:10px 20px;border-radius:12px;z-index:9999;font-size:14px;font-weight:700;white-space:nowrap;pointer-events:none;max-width:90vw;text-align:center';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+// ================================================================
+// DEFAULT STATE
+// ================================================================
+function buildDefaultState() {
+  const ath = {id:'ath_'+uid(), name:'Athlet 1', photo:'', photoId:''};
+  return {
+    athletes:[ath], activeIds:[ath.id],
+    templates:[{
+      id:'tpl_'+uid(), name:'Kickr Basics',
+      exercises:[
+        {id:'ex_'+uid(), title:'Hürden',  type:'reps', restSec:60, hint:'3x',  exPhotoId:'e1', customImgIds:[]},
+        {id:'ex_'+uid(), title:'Sprünge', type:'lr',   restSec:45, hint:'L/R', exPhotoId:'e2', customImgIds:[]}
+      ]
+    }],
+    trainings:[], tab:'tracking', athId:ath.id, trainId:'', exId:'', deleted:[]
+  };
+}
+let state = {};
+
+// ================================================================
+// UTILS
+// ================================================================
+function today() {
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDate(iso) {
+  if(!iso) return '';
+  return new Date(iso+'T12:00').toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function fmtTime(iso) {
+  if(!iso) return '';
+  return new Date(iso).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+// ================================================================
+// FEATURE A – ATHLETE PHOTO UPLOAD
+// ================================================================
+function triggerAthPhotoUpload(athId) {
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.style.display='none';
+  // Wichtig für Android WebView/Capacitor: kein capture-Attribut,
+  // damit der Nutzer zwischen Galerie und Kamera wählen kann
+  document.body.appendChild(inp);
+
+  inp.onchange = async () => {
+    const file = inp.files[0]; inp.remove();
+    if (!file) return;
+    const ath = state.athletes.find(a=>a.id===athId); if(!ath) return;
+
+    showToast('📷 Bild wird verarbeitet...');
+    try {
+      const {thumb, full} = await processImage(file, 128, 512);
+      // Delete old images
+      if (ath.photoId) {
+        await imgDelete('thumbs', ath.photoId);
+        await imgDelete('full',   ath.photoId);
+        _imgCache.delete(ath.photoId);
+      }
+      const imgId = 'ath_' + uid();
+      await imgSave('thumbs', imgId, thumb);
+      await imgSave('full',   imgId, full);
+      _imgCache.set(imgId, thumb);
+      ath.photoId = imgId;
+      ath.photo   = '';   // clear old URL
+      save(); render();
+      showToast('✅ Athleten-Foto gespeichert');
+    } catch(e) { console.error(e); showToast('❌ Fehler: ' + e.message); }
+  };
+
+  // Trigger: on Android this opens the system file picker / gallery
+  inp.click();
+}
+
+async function preloadAthThumbs() {
+  for (const a of state.athletes) {
+    if (a.photoId && !_imgCache.has(a.photoId)) await cachedThumb(a.photoId);
+  }
+}
+
+// ================================================================
+// FEATURE B – EXERCISE PHOTO UPLOAD
+// ================================================================
+function triggerExPhotoUpload(tplId, exId) {
+  const tpl = state.templates.find(t=>t.id===tplId);
+  const ex  = tpl?.exercises.find(e=>e.id===exId);
+  if (!ex) return;
+  if ((ex.customImgIds||[]).length >= 2) { showToast('⚠️ Max. 2 Bilder pro Übung'); return; }
+
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.style.display='none';
+  document.body.appendChild(inp);
+
+  inp.onchange = async () => {
+    const file = inp.files[0]; inp.remove();
+    if (!file) return;
+    showToast('📷 Bild wird verarbeitet...');
+    try {
+      const {thumb, full} = await processImage(file, 200, 1000);
+      const imgId = 'ex_' + uid();
+      await imgSave('thumbs', imgId, thumb);
+      await imgSave('full',   imgId, full);
+      _imgCache.set(imgId, thumb);
+      if (!ex.customImgIds) ex.customImgIds = [];
+      ex.customImgIds.push(imgId);
+      // Sync to trainings that use this template
+      state.trainings.forEach(tr => {
+        if (tr.tplId === tplId) {
+          const tex = tr.exercises.find(e=>e.id===exId);
+          if (tex) { if(!tex.customImgIds) tex.customImgIds=[]; tex.customImgIds.push(imgId); }
+        }
+      });
+      save(); render();
+      showToast('✅ Übungsbild gespeichert');
+    } catch(e) { console.error(e); showToast('❌ Fehler: ' + e.message); }
+  };
+  inp.click();
+}
+
+async function deleteExPhoto(tplId, exId, imgId) {
+  const tpl = state.templates.find(t=>t.id===tplId);
+  const ex  = tpl?.exercises.find(e=>e.id===exId);
+  if (!ex) return;
+  ex.customImgIds = (ex.customImgIds||[]).filter(id=>id!==imgId);
+  // Also remove from trainings
+  state.trainings.forEach(tr => {
+    if (tr.tplId===tplId) {
+      const tex = tr.exercises.find(e=>e.id===exId);
+      if (tex) tex.customImgIds = (tex.customImgIds||[]).filter(id=>id!==imgId);
+    }
+  });
+  await imgDelete('thumbs', imgId);
+  await imgDelete('full',   imgId);
+  _imgCache.delete(imgId);
+  save(); render();
+}
+
+// ================================================================
+// RENDER – Navigation + Athletes bar
+// ================================================================
+function render() {
+  $$('.nav-item').forEach(el =>
+    el.classList.toggle('active', el.getAttribute('data-tab')===state.tab));
+
+  const athDiv = $('athletes');
+  if (state.tab==='tracking' || state.tab==='statistics' || state.tab==='duel') {
+    athDiv.style.display = 'flex';
+    athDiv.innerHTML = state.activeIds.map(aid => {
+      const a = state.athletes.find(x=>x.id===aid); if(!a) return '';
+      const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
+      return `<div class="ath ${a.id===state.athId?'active':''}" data-ath="${a.id}">
+        <img src="${src}" data-lazy-ath="${a.id}"/>
+        <div class="ath-name">${esc(a.name)}</div>
+      </div>`;
+    }).join('');
+    // Lazy-load uncached athlete thumbs
+    $$('[data-lazy-ath]').forEach(async img => {
+      const a = state.athletes.find(x=>x.id===img.getAttribute('data-lazy-ath'));
+      if (a?.photoId && !_imgCache.has(a.photoId)) {
+        const src = await cachedThumb(a.photoId); if(src) img.src = src;
+      }
+    });
+    $$('[data-ath]').forEach(el => {
+      el.onclick = () => { state.athId=el.getAttribute('data-ath'); save(); render(); };
+    });
+  } else {
+    athDiv.style.display = 'none';
+  }
+
+  const main=$('main'), title=$('title'), sub=$('subtitle');
+  if      (state.tab==='tracking')   { title.textContent='🏋️ Training';  sub.textContent='Erfasse Leistungen'; renderTracking(main); }
+  else if (state.tab==='statistics') { title.textContent='📊 Statistiken'; sub.textContent='Fortschritt';       renderStats(main); }
+  else if (state.tab==='duel')       { title.textContent='⚔️ Duell';       sub.textContent='Athleten-Vergleich';renderDuel(main); }
+  else if (state.tab==='templates')  { title.textContent='📋 Templates';   sub.textContent=`${state.templates.length} Templates`; renderTemplates(main); }
+  else if (state.tab==='athletes')   { title.textContent='👥 Athleten';    sub.textContent=`${state.athletes.length} Athleten`;   renderAthletes(main); }
+  else if (state.tab==='system')     { title.textContent='⚙️ System';      sub.textContent='Einstellungen';     renderSystem(main); }
+}
+
+function bindStreakGoalBtns() {
+  if ($('goalMinus')) $('goalMinus').onclick = () => { state.weekGoal = Math.max(1, (state.weekGoal||4)-1); save(); render(); };
+  if ($('goalPlus'))  $('goalPlus').onclick  = () => { state.weekGoal = Math.min(7, (state.weekGoal||4)+1); save(); render(); };
+}
+
+// ================================================================
+// RENDER TRACKING
+// ================================================================
+function renderTracking(host) {
+  const tr  = state.trainings.find(t=>t.id===state.trainId);
+  const ex  = tr?.exercises?.find(e=>e.id===state.exId);
+  const ath = state.athletes.find(a=>a.id===state.athId);
+
+  if (!tr || !ath || !tr.exercises?.length) {
+    host.innerHTML = renderStreakBanner() + `<div class="card"><h2>Kein Training</h2><p>Erstelle ein Training um zu starten!</p>
+      <button id="newTr">➕ Training erstellen</button></div>`;
+    $('newTr').onclick = () => {
+      if (!state.templates.length) { alert('Erstelle zuerst ein Template!'); state.tab='templates'; save(); render(); return; }
+      createTraining(state.templates[0].id); render();
+    };
+    bindStreakGoalBtns();
+    return;
+  }
+
+  // Training selector row
+  let html = renderStreakBanner();
+  html += `<div class="card"><div class="sec-head"><span>🏋️ Training</span>
+    <button class="small" id="newTr">➕ Neu</button></div><div class="scroll-row">`;
+  state.trainings.forEach(t => {
+    if (!t.exercises?.length) return;
+    const active = t.id===tr.id?'active':'';
+    const photo  = PHOTOS.find(p=>p.id===(t.exercises[0]?.exPhotoId||'e1'))||PHOTOS[0];
+    html += `<div class="tr-card ${active}" data-tr="${t.id}">
+      <button class="del-btn" data-del="${t.id}" style="top:8px;right:46px">🗑</button>
+      <button class="del-btn" data-edit-date="${t.id}" style="top:8px;right:8px;background:#3b82f6">📅</button>
+      <img src="${photo.url}"/>
+      <div class="tr-info"><div class="tr-title">${esc(t.tplName)}</div><div class="tr-date">${fmtDate(t.date)}</div></div>
+      ${t.note?`<div class="tr-note-badge">📝 ${esc(t.note)}</div>`:''}
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // Exercise chips
+  html += `<div class="card"><div class="sec-head"><span>💪 Übung</span></div><div>`;
+  (tr.exercises||[]).forEach(e => {
+    const active = e.id===ex?.id?'active':'';
+    const photo  = PHOTOS.find(p=>p.id===(e.exPhotoId||'e1'))||PHOTOS[0];
+    html += `<div class="ex-chip ${active}" data-ex="${e.id}">${photo.label.split(' ')[0]} ${esc(e.title)}</div>`;
+  });
+  html += `</div></div>`;
+
+  // Active exercise panel
+  if (ex) {
+    const photo = PHOTOS.find(p=>p.id===(ex.exPhotoId||'e1'))||PHOTOS[0];
+    html += `<div class="card">`;
+
+    // ── FEATURE B: show custom images or fallback ──
+    if (ex.customImgIds?.length) {
+      html += `<div class="ex-photo-row" id="exPhotoRow">`;
+      ex.customImgIds.forEach((id, idx) => {
+        const cached = _imgCache.get(id) || '';
+        html += `<img class="ex-photo-thumb" src="${cached}" data-lazy-ex="${id}" data-lb-idx="${idx}" loading="lazy" alt="Übungsbild"/>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<img src="${photo.url}" style="width:100%;height:120px;object-fit:cover;border-radius:12px;margin-bottom:16px"/>`;
+    }
+
+    html += `<h3>${esc(ex.title)}</h3><p style="color:#6b7280;margin:8px 0">${ex.hint||''} • Pause ${ex.restSec}s</p>`;
+
+    if (ex.type==='reps') {
+      html += `<label>Anzahl Wiederholungen</label><input type="number" id="inp" class="big-input" placeholder="0"/>`;
+    } else if (ex.type==='lr') {
+      html += `<div class="row">
+        <div style="flex:1"><label>👈 Links</label><input type="number" id="inpL" class="big-input" placeholder="0"/></div>
+        <div style="flex:1"><label>👉 Rechts</label><input type="number" id="inpR" class="big-input" placeholder="0"/></div>
+      </div>`;
+    } else if (ex.type==='time') {
+      html += `<div class="timer-big" id="timer">00:00.0</div>
+        <div class="row">
+          <button id="timerStart">▶ Start</button>
+          <button id="timerStop">⏸ Stop</button>
+          <button id="timerReset">↻ Reset</button>
+        </div>
+        <label style="margin-top:16px">Zeit (Sekunden)</label>
+        <input type="number" id="inp" class="big-input" placeholder="0.0" step="0.1"/>`;
+    }
+
+    html += `<label>📝 Notiz (optional)</label>
+      <input type="text" id="note" placeholder="Notiz zur Übung..."/>
+      <button id="saveRec">💾 Speichern</button>`;
+    if (ex.restSec>0) html += `<button id="startRest">⏱ Pause ${ex.restSec}s</button>`;
+    html += `</div>`;
+
+    // ── FEATURE 13: Trainings-Notiz ──
+    html += `<div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:16px">📋</span><strong>Trainings-Notiz</strong></div>
+      <input type="text" id="trNote" value="${esc(tr.note||'')}" placeholder="z.B. Heute müde, neues Schuhwerk, nach Verletzungspause..."/>
+      <button id="saveTrNote" class="small" style="margin-top:8px;width:auto">💾 Notiz speichern</button>
+    </div>`;
+
+    // Records
+    const key  = `${ath.id}_${ex.id}`;
+    const recs = (tr.records[key]||[]).slice().reverse();
+    if (recs.length) {
+      const last = recs[0];
+      const lastVal = ex.type==='reps'?last.value:ex.type==='lr'?`L:${last.left} R:${last.right}`:last.value+'s';
+      html += `<div class="card"><h3>📊 Einträge (${recs.length})</h3>
+        <div style="font-size:11px;color:#6b7280;margin-bottom:8px">👆 Nach rechts swipen = letzten Wert wiederholen</div>`;
+      recs.forEach((r,i) => {
+        const val = ex.type==='reps'?r.value:ex.type==='lr'?`L:${r.left} R:${r.right}`:r.value+'s';
+        html += `<div class="ex-entry-card">
+          <div class="swipe-hint">↩ ${lastVal} wiederholen</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><div style="font-weight:900;font-size:20px;color:#3b82f6">${val}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:4px">${fmtTime(r.ts)}${r.note?' • '+esc(r.note):''}</div></div>
+            <button class="danger small" data-delRec="${i}">🗑</button>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+  }
+
+  host.innerHTML = html;
+
+  // ── Streak goal buttons ──
+  bindStreakGoalBtns();
+
+  // ── FEATURE 13: Save training note ──
+  if ($('saveTrNote')) {
+    $('saveTrNote').onclick = () => {
+      tr.note = $('trNote')?.value || '';
+      save();
+      showToast('📋 Trainings-Notiz gespeichert');
+    };
+  }
+
+  // ── FEATURE 18: Swipe-to-repeat ──
+  if (ex) bindSwipeToRepeat(tr, ath, ex);
+
+  // Lazy-load exercise image thumbnails + bind lightbox
+  if (ex?.customImgIds?.length) {
+    $$('[data-lazy-ex]').forEach(async img => {
+      const id  = img.getAttribute('data-lazy-ex');
+      const src = _imgCache.get(id) || await cachedThumb(id);
+      if (src) { img.src = src; _imgCache.set(id, src); }
+      img.onclick = () => openLightbox(ex.customImgIds, +img.getAttribute('data-lb-idx'));
+    });
+  }
+
+  // ── Event handlers (all original logic preserved) ──
+  $('newTr').onclick = () => {
+    if (!state.templates.length) { alert('❌ Keine Templates!'); state.tab='templates'; save(); render(); return; }
+    openNewTrainingModal();
+  };
+  $$('[data-tr]').forEach(el => {
+    el.onclick = e => {
+      if (e.target.closest('.del-btn')) return;
+      state.trainId = el.getAttribute('data-tr');
+      const t = state.trainings.find(x=>x.id===state.trainId);
+      if (t) state.exId = t.exercises[0]?.id||'';
+      save(); render();
+    };
+  });
+  $$('[data-edit-date]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); openEditDateModal(btn.getAttribute('data-edit-date')); };
+  });
+  $$('[data-del]').forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      const id=btn.getAttribute('data-del');
+      const t=state.trainings.find(x=>x.id===id);
+      if (!t||!confirm(`Training "${t.tplName}" löschen?`)) return;
+      state.deleted.unshift({tr:JSON.parse(JSON.stringify(t)),ts:new Date().toISOString()});
+      if (state.deleted.length>5) state.deleted.pop();
+      state.trainings=state.trainings.filter(x=>x.id!==id);
+      if (!state.trainings.length){state.trainId='';state.exId='';}
+      else if(state.trainId===id){state.trainId=state.trainings[0].id;state.exId=state.trainings[0].exercises?.[0]?.id||'';}
+      save(); render(); showUndo();
+    };
+  });
+  $$('[data-ex]').forEach(el=>{el.onclick=()=>{state.exId=el.getAttribute('data-ex');save();render();};});
+
+  if ($('saveRec')&&ex) {
+    $('saveRec').onclick = () => {
+      const key=`${ath.id}_${ex.id}`; if(!tr.records[key]) tr.records[key]=[];
+      const note=$('note')?.value||''; const ts=new Date().toISOString();
+      if (ex.type==='reps'){const v=$('inp')?.value;if(!v||v==='0')return alert('Bitte Anzahl eingeben');tr.records[key].push({ts,value:v,note});}
+      else if(ex.type==='lr'){const L=$('inpL')?.value,R=$('inpR')?.value;if(!L||!R)return alert('Bitte L und R eingeben');tr.records[key].push({ts,left:L,right:R,note});}
+      else{const v=$('inp')?.value;if(!v||v==='0')return alert('Bitte Zeit eingeben');tr.records[key].push({ts,value:v,note});}
+      save(); render();
+    };
+  }
+  if ($('timerStart')) {
+    let iv=null,ms=0;
+    $('timerStart').onclick=()=>{if(iv)return;const s=Date.now()-ms;iv=setInterval(()=>{ms=Date.now()-s;const sec=Math.floor(ms/1000),d=Math.floor((ms%1000)/100);$('timer').textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}.${d}`;$('inp').value=(ms/1000).toFixed(1);},100);};
+    $('timerStop').onclick=()=>{if(iv){clearInterval(iv);iv=null;}};
+    $('timerReset').onclick=()=>{if(iv){clearInterval(iv);iv=null;}ms=0;$('timer').textContent='00:00.0';$('inp').value='';};
+  }
+  if ($('startRest')&&ex) {
+    $('startRest').onclick=()=>{
+      let left=ex.restSec;
+      const div=document.createElement('div');
+      div.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:20px 30px;border-radius:16px;z-index:999;font-size:32px;font-weight:900';
+      div.textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;
+      document.body.appendChild(div);
+      const it=setInterval(()=>{if(left>0){left--;div.textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;}else{clearInterval(it);div.remove();alert('✅ Pause vorbei!');}},1000);
+    };
+  }
+  $$('[data-delRec]').forEach(btn=>{
+    btn.onclick=()=>{
+      if(!confirm('Eintrag löschen?'))return;
+      const key=`${ath.id}_${ex.id}`;const idx=+btn.getAttribute('data-delRec');
+      const recs=tr.records[key]||[];recs.splice(recs.length-1-idx,1);save();render();
+    };
+  });
+}
+
+function showUndo() {
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:12px 20px;border-radius:12px;z-index:999;display:flex;gap:12px;align-items:center';
+  div.innerHTML=`<span>Training gelöscht</span><button id="undo" style="background:#3b82f6;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-weight:700;cursor:pointer">UNDO</button>`;
+  document.body.appendChild(div);
+  $('undo').onclick=()=>{const d=state.deleted.shift();if(d){state.trainings.unshift(d.tr);state.trainId=d.tr.id;save();render();}div.remove();};
+  setTimeout(()=>div.remove(),8000);
+}
+
+// ================================================================
+// RENDER STATS (original logic, adds cached bench avatars)
+// ================================================================
+function renderStats(host) {
+  const ath=state.athletes.find(a=>a.id===state.athId);
+  if(!ath){host.innerHTML=`<div class="card"><h2>Kein Athlet ausgewählt</h2></div>`;return;}
+
+  const data={total:0,trainings:0,exercises:{}};
+  state.trainings.forEach(tr=>{
+    if(!tr.exercises||!Array.isArray(tr.exercises))return;
+    let hasData=false;
+    tr.exercises.forEach(ex=>{
+      if(!ex?.id)return;
+      const key=`${ath.id}_${ex.id}`;const recs=tr.records?.[key]||[];
+      if(recs.length){hasData=true;data.total+=recs.length;
+        if(!data.exercises[ex.title])data.exercises[ex.title]={type:ex.type,records:[],chartId:uid()};
+        recs.forEach(r=>{let v=0;if(ex.type==='reps')v=parseFloat(r.value)||0;else if(ex.type==='lr')v=(parseFloat(r.left)||0)+(parseFloat(r.right)||0);else v=parseFloat(r.value)||0;if(v>0)data.exercises[ex.title].records.push({date:new Date(r.ts),value:v,trName:tr.tplName,trDate:tr.date});});}
+    });if(hasData)data.trainings++;
+  });
+
+  if(!data.total){host.innerHTML=`<div class="card"><h2>Keine Daten</h2><p>${esc(ath.name)} hat noch keine Einträge</p></div>`;return;}
+
+  let html=`<div class="card"><h2>Statistik für ${esc(ath.name)}</h2><div class="stat-grid">
+    <div class="stat-box"><div class="stat-val">${data.total}</div><div class="stat-lbl">Einträge</div></div>
+    <div class="stat-box"><div class="stat-val">${data.trainings}</div><div class="stat-lbl">Trainings</div></div>
+    <div class="stat-box"><div class="stat-val">${Object.keys(data.exercises).length}</div><div class="stat-lbl">Übungen</div></div>
+  </div></div>`;
+
+  Object.entries(data.exercises).forEach(([exTitle,stats])=>{
+    stats.records.sort((a,b)=>a.date-b.date);
+    const vals=stats.records.map(r=>r.value);
+    const best=Math.max(...vals).toFixed(1),avg=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
+    const bestRec=stats.records.find(r=>r.value===Math.max(...vals));
+    let imp='-';if(vals.length>=2){const p=((vals[vals.length-1]-vals[0])/vals[0]*100);imp=p>=0?`+${p.toFixed(0)}%`:`${p.toFixed(0)}%`;}
+    const bench=[];
+    state.athletes.forEach(a=>{
+      const av=[];
+      state.trainings.forEach(tr=>{tr.exercises?.forEach(ex=>{if(ex?.title!==exTitle)return;const k=`${a.id}_${ex.id}`;(tr.records?.[k]||[]).forEach(r=>{let v=0;if(stats.type==='reps')v=parseFloat(r.value)||0;else if(stats.type==='lr')v=(parseFloat(r.left)||0)+(parseFloat(r.right)||0);else v=parseFloat(r.value)||0;if(v>0)av.push(v);});});});
+      if(av.length)bench.push({id:a.id,name:a.name,photoId:a.photoId,photo:a.photo,best:Math.max(...av).toFixed(1),avg:(av.reduce((a,b)=>a+b,0)/av.length).toFixed(1)});
+    });bench.sort((a,b)=>parseFloat(b.best)-parseFloat(a.best));
+    html+=`<div class="card"><h3>💪 ${esc(exTitle)}</h3><p style="color:#6b7280;margin:8px 0">${stats.records.length} Einträge</p>
+      <canvas id="chart_${stats.chartId}" style="max-height:250px;margin:16px 0"></canvas>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val">${best}</div><div class="stat-lbl">Best</div></div>
+        <div class="stat-box"><div class="stat-val">${avg}</div><div class="stat-lbl">Ø</div></div>
+        <div class="stat-box"><div class="stat-val">${imp}</div><div class="stat-lbl">Fortschritt</div></div>
+      </div>
+      ${bestRec?`<div class="best-day"><div class="best-icon">🏆</div><div class="best-info"><div class="best-title">Beste Leistung</div><div class="best-sub">${fmtDate(bestRec.trDate)} • ${esc(bestRec.trName)}</div></div><div class="best-val">${best}</div></div>`:''}
+      ${bench.length>1?`<div class="bench"><h4 style="margin:0 0 12px">📊 Athleten-Vergleich</h4>${bench.map((b,i)=>`<div class="bench-item ${b.id===ath.id?'me':''}"><div class="bench-rank">${i+1}.</div><img class="bench-ava" src="${_imgCache.get(b.photoId)||b.photo||DEFAULT_AVATAR}" data-lazy-bench="${b.photoId||''}"/><div class="bench-name">${esc(b.name)}</div><div class="bench-val">${b.best}</div></div>`).join('')}</div>`:''}
+    </div>`;
+  });
+  host.innerHTML=html;
+
+  // Lazy-load bench avatars
+  $$('[data-lazy-bench]').forEach(async img=>{
+    const id=img.getAttribute('data-lazy-bench');
+    if(id&&!_imgCache.has(id)){const src=await cachedThumb(id);if(src)img.src=src;}
+  });
+
+  setTimeout(()=>{
+    Object.entries(data.exercises).forEach(([exTitle,stats])=>{
+      const canvas=$(`chart_${stats.chartId}`);if(!canvas)return;
+      new Chart(canvas,{type:'line',data:{labels:stats.records.map(r=>fmtDate(r.trDate)),datasets:[{label:exTitle,data:stats.records.map(r=>r.value),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',tension:.4,fill:true,pointRadius:6,pointBackgroundColor:'#3b82f6',pointBorderColor:'#fff',pointBorderWidth:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#e5e7eb'}},x:{grid:{display:false}}}}});
+    });
+  },100);
+}
+
+// ================================================================
+// RENDER TEMPLATES
+// ================================================================
+function renderTemplates(host) {
+  let html=`<div class="card"><h2>Templates</h2><button id="addTpl">➕ Neues Template</button></div>`;
+  state.templates.forEach(tpl=>{
+    html+=`<div class="card"><h3>${esc(tpl.name)}</h3>
+      <label>Name</label><input value="${esc(tpl.name)}" data-tplName="${tpl.id}"/>
+      <h4 style="margin:16px 0 8px">Übungen (${tpl.exercises.length})</h4>`;
+    tpl.exercises.forEach((ex,i)=>{
+      const imgIds=ex.customImgIds||[];
+      html+=`<div class="ex-drag-item" draggable="true" data-drag-idx="${i}" data-drag-tpl="${tpl.id}">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <span class="drag-handle">⠿</span>
+          <strong style="flex:1">${esc(ex.title)}</strong>
+          <button class="danger small" data-delEx="${tpl.id},${i}">🗑</button>
+        </div>
+        <label>Titel</label><input value="${esc(ex.title)}" data-exTitle="${tpl.id},${i}"/>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:1"><label>Typ</label>
+            <select data-exType="${tpl.id},${i}">
+              <option value="reps" ${ex.type==='reps'?'selected':''}>Reps</option>
+              <option value="lr"   ${ex.type==='lr'  ?'selected':''}>L/R</option>
+              <option value="time" ${ex.type==='time'?'selected':''}>Zeit</option>
+            </select></div>
+          <div style="flex:1"><label>Pause (s)</label>
+            <input type="number" value="${ex.restSec||60}" data-exRest="${tpl.id},${i}"/></div>
+        </div>
+        <label>Standard-Foto</label>
+        <select data-exPhoto="${tpl.id},${i}">
+          ${PHOTOS.map(p=>`<option value="${p.id}" ${p.id===ex.exPhotoId?'selected':''}>${p.label}</option>`).join('')}
+        </select>
+        <label>📸 Übungsbilder (max. 2)</label>
+        <div class="ex-img-grid">
+          ${imgIds.map(id=>`<div class="ex-thumb-wrap">
+            <img src="${_imgCache.get(id)||''}" data-load-th="${id}" data-open-lb="${tpl.id}|${ex.id}|${id}" loading="lazy"/>
+            <button class="ex-thumb-del" data-del-img="${tpl.id}|${ex.id}|${id}">✕</button>
+          </div>`).join('')}
+          ${imgIds.length<2?`<button class="ex-add-photo-btn" data-add-ex-photo="${tpl.id}|${ex.id}">➕</button>`:''}
+        </div>
+      </div>`;
+    });
+    html+=`<button data-addEx="${tpl.id}">➕ Übung hinzufügen</button>
+      <div class="row" style="margin-top:16px">
+        <button data-newTr="${tpl.id}">🚀 Training starten</button>
+        <button class="danger" data-delTpl="${tpl.id}">🗑 Löschen</button>
+      </div></div>`;
+  });
+  host.innerHTML=html;
+
+  // Lazy-load exercise thumbnails in template editor
+  $$('[data-load-th]').forEach(async img=>{
+    const id=img.getAttribute('data-load-th');
+    const src=_imgCache.get(id)||await cachedThumb(id);
+    if(src){img.src=src;_imgCache.set(id,src);}
+  });
+
+  // Lightbox from template view
+  $$('[data-open-lb]').forEach(img=>{
+    img.onclick=()=>{
+      const [tplId,exId,imgId]=img.getAttribute('data-open-lb').split('|');
+      const tpl=state.templates.find(t=>t.id===tplId);
+      const ex=tpl?.exercises.find(e=>e.id===exId);
+      if(ex) openLightbox(ex.customImgIds, ex.customImgIds.indexOf(imgId));
+    };
+  });
+
+  // Add exercise photo
+  $$('[data-add-ex-photo]').forEach(btn=>{
+    btn.onclick=()=>{const[tplId,exId]=btn.getAttribute('data-add-ex-photo').split('|');triggerExPhotoUpload(tplId,exId);};
+  });
+
+  // Delete exercise photo
+  $$('[data-del-img]').forEach(btn=>{
+    btn.onclick=()=>{const[tplId,exId,imgId]=btn.getAttribute('data-del-img').split('|');if(confirm('Bild löschen?'))deleteExPhoto(tplId,exId,imgId);};
+  });
+
+  // ── FEATURE 4: Drag & Drop Reihenfolge ──
+  let dragSrc = null;
+  $$('.ex-drag-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragSrc = item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      $$('.ex-drag-item').forEach(i => i.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (item !== dragSrc) { $$('.ex-drag-item').forEach(i=>i.classList.remove('drag-over')); item.classList.add('drag-over'); }
+    });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragSrc || dragSrc === item) return;
+      const tplId = dragSrc.getAttribute('data-drag-tpl');
+      const fromIdx = +dragSrc.getAttribute('data-drag-idx');
+      const toIdx   = +item.getAttribute('data-drag-idx');
+      const tpl = state.templates.find(t=>t.id===tplId);
+      if (!tpl) return;
+      const [moved] = tpl.exercises.splice(fromIdx, 1);
+      tpl.exercises.splice(toIdx, 0, moved);
+      save(); render();
+    });
+  });
+
+  // ── All original template handlers ──
+  $('addTpl')?.addEventListener('click',()=>{
+    const name=prompt('Template Name:','Neues Template');if(!name)return;
+    state.templates.push({id:'tpl_'+uid(),name,exercises:[{id:'ex_'+uid(),title:'Übung 1',type:'reps',restSec:60,hint:'',exPhotoId:'e1',customImgIds:[]}]});
+    save();render();
+  });
+  $$('[data-tplName]').forEach(inp=>{inp.oninput=()=>{const t=state.templates.find(t=>t.id===inp.getAttribute('data-tplName'));if(t){t.name=inp.value;save();}};});
+  $$('[data-exTitle]').forEach(inp=>{inp.oninput=()=>{const[tid,i]=inp.getAttribute('data-exTitle').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].title=inp.value;save();}};});
+  $$('[data-exType]').forEach(sel=>{sel.onchange=()=>{const[tid,i]=sel.getAttribute('data-exType').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].type=sel.value;save();}};});
+  $$('[data-exRest]').forEach(inp=>{inp.oninput=()=>{const[tid,i]=inp.getAttribute('data-exRest').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].restSec=parseInt(inp.value)||0;save();}};});
+  $$('[data-exPhoto]').forEach(sel=>{sel.onchange=()=>{const[tid,i]=sel.getAttribute('data-exPhoto').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].exPhotoId=sel.value;save();}};});
+  $$('[data-delEx]').forEach(btn=>{btn.onclick=()=>{const[tid,i]=btn.getAttribute('data-delEx').split(',');const t=state.templates.find(t=>t.id===tid);if(t&&t.exercises.length>1&&confirm('Übung löschen?')){t.exercises.splice(+i,1);save();render();}};});
+  $$('[data-addEx]').forEach(btn=>{btn.onclick=()=>{const t=state.templates.find(t=>t.id===btn.getAttribute('data-addEx'));if(t){t.exercises.push({id:'ex_'+uid(),title:'Neue Übung',type:'reps',restSec:60,hint:'',exPhotoId:'e1',customImgIds:[]});save();render();}};});
+  $$('[data-newTr]').forEach(btn=>{btn.onclick=()=>{createTraining(btn.getAttribute('data-newTr'));state.tab='tracking';save();render();};});
+  $$('[data-delTpl]').forEach(btn=>{btn.onclick=()=>{if(!confirm('Template löschen?'))return;state.templates=state.templates.filter(t=>t.id!==btn.getAttribute('data-delTpl'));save();render();};});
+}
+
+// ================================================================
+// RENDER ATHLETES – with photo upload (FEATURE A)
+// ================================================================
+function renderAthletes(host) {
+  let html=`<div class="card"><h2>Athleten-Verwaltung</h2><button id="addAth">➕ Neuer Athlet</button></div>`;
+  state.athletes.forEach(a=>{
+    const active=state.activeIds.includes(a.id);
+    const avatarSrc=_imgCache.get(a.photoId)||a.photo||DEFAULT_AVATAR;
+    html+=`<div class="card">
+      <h3>${esc(a.name)}</h3>
+      <p style="color:#6b7280">Status: ${active?'✅ Aktiv':'⏸ Inaktiv'}</p>
+      <div class="ath-photo-wrap">
+        <img src="${avatarSrc}" data-lazy-ath-detail="${a.id}" alt="${esc(a.name)}"/>
+        <button class="ath-photo-btn" data-photo-upload="${a.id}" title="Foto aus Galerie wählen">📷</button>
+      </div>
+      <label>Name</label><input value="${esc(a.name)}" data-athName="${a.id}"/>
+      <label>Foto URL (optional, wird durch Galerie-Foto ersetzt)</label>
+      <input value="${esc(a.photo||'')}" data-athPhoto="${a.id}" placeholder="https://..."/>
+      <div class="row" style="margin-top:12px">
+        <button data-toggle="${a.id}">${active?'Deaktivieren':'Aktivieren'}</button>
+        <button class="danger" data-delAth="${a.id}">🗑 Löschen</button>
+      </div>
+    </div>`;
+  });
+  host.innerHTML=html;
+
+  // Lazy-load athlete detail photos
+  $$('[data-lazy-ath-detail]').forEach(async img=>{
+    const a=state.athletes.find(x=>x.id===img.getAttribute('data-lazy-ath-detail'));
+    if(a?.photoId){const src=await cachedThumb(a.photoId);if(src)img.src=src;}
+  });
+
+  // Photo upload
+  $$('[data-photo-upload]').forEach(btn=>{
+    btn.onclick=()=>triggerAthPhotoUpload(btn.getAttribute('data-photo-upload'));
+  });
+
+  $('addAth')?.addEventListener('click',()=>{
+    const name=prompt('Name:','Athlet '+(state.athletes.length+1));if(!name)return;
+    const a={id:'ath_'+uid(),name,photo:'',photoId:''};
+    state.athletes.push(a);state.activeIds.push(a.id);save();render();
+  });
+  $$('[data-athName]').forEach(inp=>{inp.oninput=()=>{const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athName'));if(a){a.name=inp.value;save();}};});
+  $$('[data-athPhoto]').forEach(inp=>{inp.oninput=()=>{const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athPhoto'));if(a){a.photo=inp.value;save();}};});
+  $$('[data-toggle]').forEach(btn=>{btn.onclick=()=>{const id=btn.getAttribute('data-toggle');const i=state.activeIds.indexOf(id);if(i>=0)state.activeIds.splice(i,1);else state.activeIds.push(id);save();render();};});
+  $$('[data-delAth]').forEach(btn=>{
+    btn.onclick=()=>{
+      if(!confirm('Athlet löschen?'))return;
+      const id=btn.getAttribute('data-delAth');
+      const a=state.athletes.find(x=>x.id===id);
+      if(a?.photoId){imgDelete('thumbs',a.photoId);imgDelete('full',a.photoId);_imgCache.delete(a.photoId);}
+      state.athletes=state.athletes.filter(x=>x.id!==id);
+      state.activeIds=state.activeIds.filter(x=>x!==id);
+      if(state.athId===id)state.athId=state.activeIds[0]||'';
+      save();render();
+    };
+  });
+}
+
+// ================================================================
+// RENDER SYSTEM
+// ================================================================
+function renderSystem(host) {
+  host.innerHTML=`<div class="card"><h2>System & Export</h2>
+    <h3 style="margin:20px 0 10px">📄 PDF Export</h3>
+    <button id="pdfSingle">📄 Aktuelles Training</button>
+    <h3 style="margin:20px 0 10px">💾 Daten</h3>
+    <button id="exportData">💾 Daten exportieren</button>
+    <button id="importData">📥 Daten importieren</button>
+    <input type="file" id="importFile" accept=".json" style="display:none"/>
+    <h3 style="margin:20px 0 10px">🔄 Reset</h3>
+    <button class="danger" id="reset">🗑 Alles zurücksetzen</button>
+  </div>`;
+
+  $('pdfSingle').onclick=()=>{
+    const tr=state.trainings.find(t=>t.id===state.trainId);const ath=state.athletes.find(a=>a.id===state.athId);
+    if(!tr||!ath)return alert('Kein Training/Athlet ausgewählt');
+    const{jsPDF}=window.jspdf;const doc=new jsPDF();
+    doc.setFontSize(18);doc.text(`Training: ${tr.tplName}`,14,20);
+    doc.setFontSize(12);doc.text(`Athlet: ${ath.name}`,14,28);doc.text(`Datum: ${fmtDate(tr.date)}`,14,34);
+    let y=44;
+    tr.exercises.forEach(ex=>{const key=`${ath.id}_${ex.id}`;const recs=tr.records[key]||[];if(!recs.length)return;
+      doc.setFontSize(14);doc.text(`${ex.title} (${ex.type})`,14,y);y+=8;
+      const rows=recs.map(r=>{let v=ex.type==='reps'?r.value:ex.type==='lr'?`L:${r.left} R:${r.right}`:r.value+'s';return[fmtTime(r.ts),v,r.note||''];});
+      doc.autoTable({startY:y,head:[['Zeit','Wert','Notiz']],body:rows,theme:'grid',styles:{fontSize:10},margin:{left:14}});
+      y=doc.lastAutoTable.finalY+10;if(y>270){doc.addPage();y=20;}
+    });
+    doc.save(`training_${ath.name}_${tr.date}.pdf`);
+  };
+  $('exportData').onclick=()=>{
+    const data={version:'2.0',exported:new Date().toISOString(),state};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`kickr_backup_${today()}.json`;a.click();URL.revokeObjectURL(url);
+  };
+  $('importData').onclick=()=>$('importFile').click();
+  $('importFile').onchange=e=>{
+    const file=e.target.files[0];if(!file)return;const reader=new FileReader();
+    reader.onload=evt=>{try{const data=JSON.parse(evt.target.result);if(!data.state)throw new Error('Ungültiges Format');if(!confirm('⚠️ Alle Daten werden überschrieben!'))return;state=data.state;save();render();alert('✅ Importiert!');}catch(err){alert('❌ '+err.message);}};
+    reader.readAsText(file);
+  };
+  $('reset').onclick=()=>{
+    if(!confirm('⚠️ ALLES löschen inkl. Fotos?'))return;
+    try{localStorage.clear();}catch{}
+    try{indexedDB.deleteDatabase(DB_NAME);}catch{}
+    try{indexedDB.deleteDatabase(IMG_DB_NAME);}catch{}
+    location.reload();
+  };
+}
+
+// ================================================================
+// TRAINING CREATION + MODALS
+// ================================================================
+function createTraining(tplId) {
+  const tpl=state.templates.find(t=>t.id===tplId);
+  if(!tpl){alert('❌ Template nicht gefunden!');return null;}
+  if(!tpl.exercises?.length){alert('❌ Template hat keine Übungen!');return null;}
+  const tr={id:'tr_'+uid(),tplId,tplName:tpl.name,date:today(),exercises:JSON.parse(JSON.stringify(tpl.exercises)),records:{}};
+  state.trainings.unshift(tr);state.trainId=tr.id;state.exId=tr.exercises[0]?.id||'';
+  save();return tr;
+}
+
+let selectedTemplateId='';
+function openNewTrainingModal() {
+  const options=$('templateOptions');const dateInput=$('newTrainingDate');
+  dateInput.value=today();
+  options.innerHTML=state.templates.map(tpl=>`
+    <div class="tpl-option" data-tpl="${tpl.id}">
+      <div><div class="tpl-name">${esc(tpl.name)}</div><div class="tpl-info">${tpl.exercises?.length||0} Übungen</div></div>
+      <div style="font-size:24px">📋</div>
+    </div>`).join('');
+  selectedTemplateId=state.templates[0]?.id||'';
+  $$('.tpl-option').forEach(opt=>{opt.onclick=()=>{$$('.tpl-option').forEach(o=>o.classList.remove('selected'));opt.classList.add('selected');selectedTemplateId=opt.getAttribute('data-tpl');};});
+  options.querySelector('.tpl-option')?.classList.add('selected');
+  $('newTrainingModal').classList.add('show');
+}
+function closeNewTrainingModal(){$('newTrainingModal').classList.remove('show');selectedTemplateId='';}
+function openEditDateModal(tid){
+  const tr=state.trainings.find(t=>t.id===tid);if(!tr)return;
+  $('editDateTrainingName').textContent=tr.tplName;$('editDateInput').value=tr.date||today();
+  $('editDateModal').setAttribute('data-training-id',tid);$('editDateModal').classList.add('show');
+}
+function closeEditDateModal(){$('editDateModal').classList.remove('show');}
+
+$('closeNewTraining').onclick=closeNewTrainingModal;
+$('newTrainingModal').onclick=e=>{if(e.target.id==='newTrainingModal')closeNewTrainingModal();};
+$('confirmNewTraining').onclick=()=>{
+  if(!selectedTemplateId)return alert('Bitte Template wählen');
+  const date=$('newTrainingDate').value;if(!date)return alert('Bitte Datum wählen');
+  const tpl=state.templates.find(t=>t.id===selectedTemplateId);
+  if(!tpl?.exercises?.length)return alert('❌ Template hat keine Übungen!');
+  const tr={id:'tr_'+uid(),tplId:selectedTemplateId,tplName:tpl.name,date,exercises:JSON.parse(JSON.stringify(tpl.exercises)),records:{}};
+  state.trainings.unshift(tr);state.trainId=tr.id;state.exId=tr.exercises[0]?.id||'';
+  save();closeNewTrainingModal();render();
+};
+$('closeEditDate').onclick=closeEditDateModal;
+$('editDateModal').onclick=e=>{if(e.target.id==='editDateModal')closeEditDateModal();};
+$('confirmEditDate').onclick=()=>{
+  const tid=$('editDateModal').getAttribute('data-training-id');
+  const newDate=$('editDateInput').value;if(!newDate)return alert('Bitte Datum wählen');
+  const tr=state.trainings.find(t=>t.id===tid);
+  if(tr){tr.date=newDate;save();closeEditDateModal();render();}
+};
+$$('.nav-item').forEach(item=>{item.onclick=()=>{state.tab=item.getAttribute('data-tab');save();render();};});
+
+// ================================================================
+// BOOT
+// ================================================================
+(async function boot() {
+  const loaded  = await loadState();
+  const defaults= buildDefaultState();
+  state = Object.assign({}, defaults, loaded);
+
+  // Ensure required fields
+  state.athletes  = state.athletes  || defaults.athletes;
+  state.activeIds = state.activeIds || defaults.activeIds;
+  state.templates = state.templates || defaults.templates;
+  state.trainings = state.trainings || [];
+  state.tab       = state.tab       || 'tracking';
+  state.athId     = state.athId     || state.athletes[0]?.id||'';
+  state.trainId   = state.trainId   || '';
+  state.exId      = state.exId      || '';
+  state.deleted   = state.deleted   || [];
+  state.weekGoal  = state.weekGoal  || 4;
+
+  // ── Migration: add new fields to existing data ──
+  state.athletes.forEach(a=>{ if(!a.photoId) a.photoId=''; });
+  state.templates.forEach(tpl=>{ tpl.exercises?.forEach(ex=>{ if(!ex.customImgIds) ex.customImgIds=[]; }); });
+  state.trainings.forEach(tr=>{  tr.exercises?.forEach(ex=>{  if(!ex.customImgIds) ex.customImgIds=[]; }); if(!tr.note) tr.note=''; });
+
+  if(state.athId && !state.athletes.find(a=>a.id===state.athId))
+    state.athId=state.activeIds[0]||state.athletes[0]?.id||'';
+
+  save();
+
+  // Pre-load all athlete thumbnails into memory cache
+  await preloadAthThumbs();
+
+  render();
+  console.log('✅ Kickr PRO v3.0 – Streak, Drag&Drop, Duell, Notizen, Swipe aktiv');
+})();
+</script>
+</body>
+</html>
