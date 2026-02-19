@@ -1537,7 +1537,7 @@ function renderSystem(host) {
     prog.textContent = '⏳ Sammle Bilddaten...';
 
     try {
-      // Collect ALL image IDs from athletes and exercises
+      // Collect ALL image IDs
       const allImgIds = new Set();
       state.athletes.forEach(a => { if(a.photoId) allImgIds.add(a.photoId); });
       state.templates.forEach(tpl => tpl.exercises?.forEach(ex => (ex.customImgIds||[]).forEach(id=>allImgIds.add(id))));
@@ -1555,95 +1555,161 @@ function renderSystem(host) {
       }
 
       const backup = {
-        version:   '3.0',
-        exported:  new Date().toISOString(),
-        appName:   'Kickr Training PRO',
-        state:     state,
-        images:    images
+        version:  '4.0',
+        exported: new Date().toISOString(),
+        appName:  'Kickr Training PRO',
+        state:    state,
+        images:   images
       };
 
       prog.textContent = '⏳ Erstelle Datei...';
-      const json = JSON.stringify(backup);
-      const blob = new Blob([json], {type:'application/json'});
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `kickr_backup_${today()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const json     = JSON.stringify(backup);
+      const blob     = new Blob([json], {type:'application/json'});
+      const filename = `kickr_backup_${today()}.json`;
+      const sizeMB   = (blob.size/1024/1024).toFixed(1);
 
-      prog.textContent = `✅ Backup exportiert (${ids.length} Bilder, ${(blob.size/1024/1024).toFixed(1)} MB)`;
-      setTimeout(()=>prog.style.display='none', 4000);
+      // Try File System Access API (modern browsers + some Android WebViews)
+      // → lets user pick save location
+      if (window.showSaveFilePicker) {
+        try {
+          const fh = await window.showSaveFilePicker({
+            suggestedName: filename,
+            startIn: 'downloads',
+            types: [{ description: 'JSON Backup', accept: {'application/json': ['.json']} }]
+          });
+          const ws = await fh.createWritable();
+          await ws.write(blob);
+          await ws.close();
+          prog.textContent = `✅ Backup gespeichert (${ids.length} Bilder, ${sizeMB} MB)`;
+          setTimeout(()=>prog.style.display='none', 5000);
+          return;
+        } catch(pickerErr) {
+          // User cancelled or picker not supported → fall through to download
+          if (pickerErr.name === 'AbortError') {
+            prog.textContent = 'ℹ️ Abgebrochen';
+            setTimeout(()=>prog.style.display='none', 2000);
+            return;
+          }
+        }
+      }
+
+      // Fallback: standard download → Downloads folder
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      prog.textContent = `✅ Backup gespeichert: "${filename}" (${sizeMB} MB) → Downloads-Ordner`;
+      setTimeout(()=>prog.style.display='none', 6000);
+
     } catch(err) {
-      prog.textContent = '❌ Fehler: ' + err.message;
-      console.error(err);
+      prog.textContent = '❌ Export fehlgeschlagen: ' + err.message;
+      console.error('Export error:', err);
     }
   };
 
   // ── Vollständiger Import inkl. Bilder ──
-  $('importData').onclick = () => $('importFile').click();
+  $('importData').onclick = () => {
+    // Reset input so same file can be selected again
+    $('importFile').value = '';
+    $('importFile').click();
+  };
+
   $('importFile').onchange = async e => {
-    const file = e.target.files[0]; if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
     const prog = $('importProgress');
     prog.style.display = 'block';
     prog.textContent = '⏳ Lese Datei...';
 
-    const reader = new FileReader();
-    reader.onload = async evt => {
+    try {
+      const text = await file.text();
+
+      let backup;
       try {
-        const backup = JSON.parse(evt.target.result);
+        backup = JSON.parse(text);
+      } catch(parseErr) {
+        throw new Error('Datei ist kein gültiges JSON (' + parseErr.message + ')');
+      }
 
-        // Support multiple formats:
-        // v4.0: { version, state, images, exported }
-        // v3.0/v2.0: { version, state, exported }
-        // raw state (legacy): direct state object with athletes/trainings
-        let restoredState = null;
-        if (backup.state) {
+      // Support all formats:
+      // v4.0: { version:'4.0', state:{...}, images:{...}, exported }
+      // v3.0/v2.0: { version, state:{...}, exported }
+      // legacy direct export: { athletes, trainings, templates, ... }
+      let restoredState = null;
+
+      if (backup && typeof backup === 'object') {
+        if (backup.state && typeof backup.state === 'object') {
           restoredState = backup.state;
-        } else if (backup.athletes || backup.trainings || backup.templates) {
-          // Raw state object exported directly
-          restoredState = backup;
-        } else {
-          throw new Error('Ungültiges Format – keine erkennbaren Trainingsdaten gefunden');
+        } else if (backup.athletes !== undefined || backup.trainings !== undefined || backup.templates !== undefined) {
+          restoredState = backup; // raw state object
         }
+      }
 
-        const exportDate = backup.exported
-          ? new Date(backup.exported).toLocaleDateString('de-DE')
-          : 'unbekannt';
-        const version = backup.version || 'unbekannt';
+      if (!restoredState) {
+        throw new Error(`Unbekanntes Format. Gefundene Keys: ${Object.keys(backup||{}).join(', ') || '(leer)'}`);
+      }
 
-        if (!confirm(`⚠️ Backup v${version} vom ${exportDate} importieren?\n\nAlle aktuellen Daten werden überschrieben!`)) {
-          prog.style.display='none'; return;
-        }
+      // Validate minimum required fields
+      if (!Array.isArray(restoredState.athletes) && !Array.isArray(restoredState.trainings) && !Array.isArray(restoredState.templates)) {
+        throw new Error('Backup enthält keine Athleten, Trainings oder Templates');
+      }
 
-        // Restore state
-        state = restoredState;
-        save();
+      const exportDate = backup.exported
+        ? new Date(backup.exported).toLocaleDateString('de-DE')
+        : 'unbekannt';
+      const version = backup.version || '?';
+      const athCount = (restoredState.athletes||[]).length;
+      const trCount  = (restoredState.trainings||[]).length;
+      const tplCount = (restoredState.templates||[]).length;
+      const imgCount = backup.images ? Object.keys(backup.images).length : 0;
 
-        // Restore images if present
-        if (backup.images && Object.keys(backup.images).length) {
-          const ids = Object.keys(backup.images);
-          // Clear existing image DB first
-          _imgDb = null;
-          for (let i = 0; i < ids.length; i++) {
-            prog.textContent = `⏳ Stelle Bilder wieder her... ${i+1}/${ids.length}`;
-            const id = ids[i];
-            const img = backup.images[id];
-            if (img.thumb) await imgSave('thumbs', id, img.thumb);
-            if (img.full)  await imgSave('full',   id, img.full);
-            if (img.thumb) _imgCache.set(id, img.thumb);
+      if (!confirm(
+        `Backup v${version} vom ${exportDate} importieren?\n\n` +
+        `📊 Inhalt:\n` +
+        `  • ${athCount} Athleten\n` +
+        `  • ${trCount} Trainings\n` +
+        `  • ${tplCount} Templates\n` +
+        `  • ${imgCount} Fotos\n\n` +
+        `⚠️ Alle aktuellen Daten werden überschrieben!`
+      )) {
+        prog.style.display = 'none';
+        return;
+      }
+
+      // Restore state
+      prog.textContent = '⏳ Stelle Daten wieder her...';
+      state = restoredState;
+      save();
+
+      // Restore images
+      if (backup.images && imgCount > 0) {
+        const imgIds = Object.keys(backup.images);
+        for (let i = 0; i < imgIds.length; i++) {
+          prog.textContent = `⏳ Stelle Fotos wieder her... ${i+1}/${imgIds.length}`;
+          const id  = imgIds[i];
+          const img = backup.images[id];
+          if (!img) continue;
+          try {
+            if (img.thumb) { await imgSave('thumbs', id, img.thumb); _imgCache.set(id, img.thumb); }
+            if (img.full)  { await imgSave('full',   id, img.full); }
+          } catch(imgErr) {
+            console.warn('Bild konnte nicht wiederhergestellt werden:', id, imgErr);
           }
         }
-
-        prog.textContent = '✅ Import erfolgreich! App wird neu geladen...';
-        setTimeout(() => location.reload(), 1500);
-
-      } catch(err) {
-        prog.textContent = '❌ Import fehlgeschlagen: ' + err.message;
-        console.error(err);
       }
-    };
-    reader.readAsText(file);
+
+      prog.textContent = `✅ Import erfolgreich! (${athCount} Athleten, ${trCount} Trainings, ${imgCount} Fotos) – App wird neu geladen...`;
+      setTimeout(() => location.reload(), 2000);
+
+    } catch(err) {
+      prog.textContent = '❌ Import fehlgeschlagen: ' + err.message;
+      console.error('Import error:', err);
+    }
   };
 
   $('reset').onclick = () => {
