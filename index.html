@@ -1571,10 +1571,12 @@ function renderSystem(host) {
       const blob     = new Blob([json], {type:'application/json'});
       const filename = `kickr_backup_${today()}.json`;
       const sizeMB   = (blob.size/1024/1024).toFixed(1);
-      const sizeKB   = Math.round(blob.size/1024);
 
-      // ── Methode 1: File System Access API (Desktop Chrome/Edge) ──
-      if (window.showSaveFilePicker) {
+      // Median/Android WebView erkennen – showSaveFilePicker ist dort ein defekter Stub
+      const isMedianWebView = /median/i.test(navigator.userAgent) || (/Android/.test(navigator.userAgent) && /wv\)/.test(navigator.userAgent));
+
+      // ── Methode 1: File System Access API – nur echter Desktop ──
+      if (window.showSaveFilePicker && !isMedianWebView) {
         try {
           const fh = await window.showSaveFilePicker({
             suggestedName: filename,
@@ -1584,53 +1586,40 @@ function renderSystem(host) {
           const ws = await fh.createWritable();
           await ws.write(blob);
           await ws.close();
-          prog.style.color = '#10b981';
-          prog.textContent = `✅ Gespeichert: ${filename} (${sizeMB} MB)`;
-          setTimeout(()=>{ prog.style.display='none'; prog.style.color='#6b7280'; }, 6000);
+          prog.innerHTML = `<span style="color:#10b981;font-weight:700">✅ Gespeichert: ${filename} (${sizeMB} MB)</span>`;
+          setTimeout(()=>prog.style.display='none', 6000);
           return;
         } catch(err) {
-          if (err.name === 'AbortError') {
-            prog.style.display='none'; return;
-          }
-          // Nicht unterstützt → nächste Methode
+          if (err.name === 'AbortError') { prog.style.display='none'; return; }
+          // Nicht unterstützt → weiter
         }
       }
 
-      // ── Methode 2: Web Share API mit Datei (Android Chrome ≥ 75) ──
+      // ── Methode 2: Web Share mit Datei ──
       const shareFile = new File([blob], filename, {type:'application/json'});
-      if (navigator.canShare && navigator.canShare({ files: [shareFile] })) {
+      if (!isMedianWebView && navigator.canShare && navigator.canShare({ files: [shareFile] })) {
         try {
-          await navigator.share({
-            title: 'Kickr Backup',
-            text: `${filename} (${sizeMB} MB)`,
-            files: [shareFile]
-          });
-          prog.style.color = '#10b981';
-          prog.textContent = `✅ Backup geteilt (${sizeMB} MB)`;
-          setTimeout(()=>{ prog.style.display='none'; prog.style.color='#6b7280'; }, 6000);
+          await navigator.share({ title: 'Kickr Backup', files: [shareFile] });
+          prog.innerHTML = `<span style="color:#10b981;font-weight:700">✅ Backup geteilt (${sizeMB} MB)</span>`;
+          setTimeout(()=>prog.style.display='none', 6000);
           return;
         } catch(err) {
-          if (err.name === 'AbortError') {
-            prog.style.display='none'; return;
-          }
-          // Fehlgeschlagen → nächste Methode
+          if (err.name === 'AbortError') { prog.style.display='none'; return; }
         }
       }
 
-      // ── Methode 3: Sichtbarer Download-Link im UI (garantiert für Android WebView) ──
-      // Kein programmatischer Click nötig – User tippt selbst auf den Link
+      // ── Methode 3: Direkt-Link im UI (Android WebView / Fallback) ──
       const dlUrl = URL.createObjectURL(blob);
       prog.style.display = 'block';
       prog.innerHTML = `
-        <div style="font-weight:700;color:#10b981;margin-bottom:8px">✅ Backup bereit – ${sizeMB} MB</div>
-        <div style="margin-bottom:10px;color:#374151;font-size:12px">Tippe auf den Button um die Datei zu speichern:</div>
+        <div style="font-weight:700;color:#10b981;margin-bottom:8px">✅ Backup bereit (${sizeMB} MB)</div>
+        <div style="margin-bottom:10px;color:#374151;font-size:12px">Tippe auf den grünen Button zum Speichern:</div>
         <a href="${dlUrl}" download="${filename}"
            style="display:block;background:#10b981;color:#fff;padding:14px 16px;border-radius:12px;font-weight:900;font-size:15px;text-align:center;text-decoration:none;margin-bottom:8px">
-          📥 ${filename} herunterladen
+          📥 ${filename}
         </a>
-        <div style="font-size:11px;color:#9ca3af">Falls nichts passiert: Link gedrückt halten → "Link speichern" oder "Herunterladen"</div>
+        <div style="font-size:11px;color:#9ca3af">Nicht reagiert? → Link gedrückt halten → "Herunterladen"</div>
       `;
-      // Revoke Object URL after 10 minutes
       setTimeout(() => URL.revokeObjectURL(dlUrl), 600000);
 
     } catch(err) {
@@ -1817,15 +1806,17 @@ function renderSystem(host) {
 
     // ── Test: <a download> click ──
     log('⬇️  DOWNLOAD-LINK TEST (Mini-Datei)', '#f9d94e');
+    const isMedian = /median/i.test(navigator.userAgent) || (/Android/.test(navigator.userAgent) && /wv\)/.test(navigator.userAgent));
+    isMedian ? ok('Android WebView / Median erkannt → showSaveFilePicker wird ÜBERSPRUNGEN') : inf('Kein Android WebView – showSaveFilePicker wird versucht');
     try {
       const testBlob = new Blob(['{"debug":true}'], {type:'application/json'});
       const url = URL.createObjectURL(testBlob);
       const a = document.createElement('a');
       a.href = url; a.download = 'kickr_debug_test.json';
       a.style.cssText = 'display:block;background:#3b82f6;color:#fff;padding:10px;border-radius:8px;text-align:center;text-decoration:none;margin:8px 0;font-weight:700';
-      a.textContent = '⬇️ kickr_debug_test.json (Testdatei) – hier tippen!';
+      a.textContent = '⬇️ kickr_debug_test.json – hier tippen!';
       out.appendChild(a);
-      inf('Link erzeugt. Tippe oben auf den blauen Link – erscheint die Datei in Downloads?');
+      inf('→ Tippe auf den blauen Link. Erscheint die Datei in Downloads?');
       setTimeout(() => URL.revokeObjectURL(url), 300000);
     } catch(e) { err('Download-Link Fehler: ' + e.message); }
     sep();
