@@ -1593,14 +1593,31 @@ function renderSystem(host) {
       try {
         const backup = JSON.parse(evt.target.result);
 
-        // Validate
-        if (!backup.state) throw new Error('Ungültiges Backup-Format (kein "state" Objekt)');
-        if (!confirm(`⚠️ Backup vom ${backup.exported ? new Date(backup.exported).toLocaleDateString('de-DE') : 'unbekannt'} importieren?\n\nAlle aktuellen Daten werden überschrieben!`)) {
+        // Support multiple formats:
+        // v4.0: { version, state, images, exported }
+        // v3.0/v2.0: { version, state, exported }
+        // raw state (legacy): direct state object with athletes/trainings
+        let restoredState = null;
+        if (backup.state) {
+          restoredState = backup.state;
+        } else if (backup.athletes || backup.trainings || backup.templates) {
+          // Raw state object exported directly
+          restoredState = backup;
+        } else {
+          throw new Error('Ungültiges Format – keine erkennbaren Trainingsdaten gefunden');
+        }
+
+        const exportDate = backup.exported
+          ? new Date(backup.exported).toLocaleDateString('de-DE')
+          : 'unbekannt';
+        const version = backup.version || 'unbekannt';
+
+        if (!confirm(`⚠️ Backup v${version} vom ${exportDate} importieren?\n\nAlle aktuellen Daten werden überschrieben!`)) {
           prog.style.display='none'; return;
         }
 
         // Restore state
-        state = backup.state;
+        state = restoredState;
         save();
 
         // Restore images if present
