@@ -27,7 +27,7 @@ jobs:
 
       - name: Inject GIST_TOKEN into index.html
         run: |
-          sed -i "s/GITHUB_TOKEN_PLACEHOLDER/${{ secrets.GIST_TOKEN }}/g" public/index.html
+          sed -i "s/GITHUB_TOKEN_PLACEHOLDER/${{ secrets.GIST_TOKEN }}/g" index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -35,7 +35,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public/
+          path: .
 
       - name: Deploy to GitHub Pages
         id: deployment
