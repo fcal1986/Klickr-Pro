@@ -1609,22 +1609,22 @@ function renderSystem(host) {
         }
       }
 
-      // ── Methode 3: JSONBin Upload → median.share.downloadFile (Android/Median) ──
-      // Median kann keine lokalen Blobs herunterladen – die Datei muss auf einem
-      // öffentlichen Server liegen. JSONBin.io hostet sie kurz, dann lädt Median sie
-      // nativ herunter (open:false = stil in Downloads, kein "Öffnen mit"-Dialog).
-      // Voraussetzung: "Downloads Folder Enabled" in Median App Studio → Permissions.
+      // ── Methode 3: GitHub Gist → median.share.downloadFile (Android/Median) ──
+      // Das Backup wird als temporärer (secret) Gist hochgeladen.
+      // Die raw_url endet auf den echten Dateinamen → Median speichert korrekt in Downloads.
+      // Voraussetzung: GitHub Personal Access Token (nur "gist" Scope nötig).
+      // Einmalig erstellen: github.com/settings/tokens → "gist" anhaken → Token kopieren.
       if (isMedianWebView) {
-        const JSONBIN_API_KEY = '$2a$10$PLACEHOLDER_REPLACE_ME'; // ← deinen JSONBin API Key hier eintragen
+        const GITHUB_TOKEN = 'GITHUB_TOKEN_PLACEHOLDER'; // ← deinen GitHub Token hier eintragen
 
-        if (JSONBIN_API_KEY.includes('PLACEHOLDER')) {
+        if (GITHUB_TOKEN.includes('PLACEHOLDER')) {
           prog.style.display = 'block';
           prog.innerHTML = `
-            <div style="color:#ef4444;font-weight:700;margin-bottom:8px">⚠️ JSONBin API Key fehlt</div>
+            <div style="color:#ef4444;font-weight:700;margin-bottom:8px">⚠️ GitHub Token fehlt</div>
             <div style="font-size:12px;color:#374151;line-height:1.6">
-              1. Gehe zu <strong>jsonbin.io</strong> → kostenlos registrieren<br>
-              2. API Keys → Master Key kopieren<br>
-              3. Im Code <code>JSONBIN_API_KEY</code> ersetzen
+              1. github.com/settings/tokens → "Generate new token (classic)"<br>
+              2. Nur <strong>"gist"</strong> Scope anhaken<br>
+              3. Token in index.html bei <code>GITHUB_TOKEN_PLACEHOLDER</code> eintragen
             </div>
           `;
           return;
@@ -1632,61 +1632,58 @@ function renderSystem(host) {
 
         prog.textContent = '⏳ Lade Backup hoch...';
         try {
-          // Backup auf JSONBin hochladen (public bin → keine Auth zum Lesen nötig)
-          const uploadRes = await fetch('https://api.jsonbin.io/v3/b', {
+          // Backup als secret Gist hochladen
+          const gistRes = await fetch('https://api.github.com/gists', {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'X-Master-Key': JSONBIN_API_KEY,
-              'X-Bin-Name': filename,
-              'X-Bin-Private': 'false'   // public → Median kann es herunterladen
+              'Authorization': `Bearer ${GITHUB_TOKEN}`,
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json'
             },
-            body: json
+            body: JSON.stringify({
+              description: `Kickr Backup ${today()}`,
+              public: false,
+              files: {
+                [filename]: { content: json }
+              }
+            })
           });
 
-          if (!uploadRes.ok) throw new Error('JSONBin Upload fehlgeschlagen: ' + uploadRes.status);
-          const uploadData = await uploadRes.json();
-          const binId = uploadData.metadata.id;
-          // ?meta=false gibt reinen JSON-Inhalt ohne {"record":{...}} Wrapper zurück
-          const downloadUrl = `https://api.jsonbin.io/v3/b/${binId}?meta=false`;
+          if (!gistRes.ok) throw new Error('Gist Upload fehlgeschlagen: ' + gistRes.status);
+          const gistData = await gistRes.json();
+          const gistId   = gistData.id;
+          // raw_url endet auf /raw/.../kickr_backup_YYYY-MM-DD.json → korrekter Dateiname
+          const rawUrl   = gistData.files[filename].raw_url;
 
           prog.textContent = '⏳ Starte Download...';
 
-          // Median lädt die Datei direkt in den Downloads-Ordner
-          // open:false = kein "Öffnen mit"-Dialog (benötigt "Downloads Folder Enabled" in Median Permissions)
-          if (window.median && window.median.share && window.median.share.downloadFile) {
-            await window.median.share.downloadFile({
-              url: downloadUrl,
-              open: false,
-              filename: filename   // Dateiname mit .json Endung
-            });
+          if (window.median?.share?.downloadFile) {
+            await window.median.share.downloadFile({ url: rawUrl, open: false });
             prog.style.display = 'block';
-            prog.innerHTML = `<div style="color:#10b981;font-weight:700">✅ Backup gespeichert in Downloads: ${filename} (${sizeMB} MB)</div>`;
+            prog.innerHTML = `<div style="color:#10b981;font-weight:700">✅ ${filename} gespeichert in Downloads (${sizeMB} MB)</div>`;
             setTimeout(()=>prog.style.display='none', 6000);
           } else {
-            // Median Bridge nicht verfügbar – Fallback: direkt im Browser öffnen
-            window.open(downloadUrl, '_blank');
+            window.open(rawUrl, '_blank');
             prog.innerHTML = `<div style="color:#10b981;font-weight:700">✅ Download gestartet: ${filename}</div>`;
             setTimeout(()=>prog.style.display='none', 6000);
           }
 
-          // Bin nach 1 Stunde löschen (Best-Effort, kein Warten)
+          // Gist nach 10 Minuten automatisch löschen (Best-Effort)
           setTimeout(() => {
-            fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+            fetch(`https://api.github.com/gists/${gistId}`, {
               method: 'DELETE',
-              headers: { 'X-Master-Key': JSONBIN_API_KEY }
+              headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
             }).catch(()=>{});
-          }, 3600000);
+          }, 600000);
 
           return;
         } catch(uploadErr) {
-          // JSONBin fehlgeschlagen → Data-URL Fallback mit Anleitung
+          // Fallback: Data-URL Link anzeigen
           prog.style.display = 'block';
           prog.innerHTML = `
-            <div style="color:#f59e0b;font-weight:700;margin-bottom:8px">⚠️ Upload fehlgeschlagen (${uploadErr.message})</div>
-            <div style="font-size:12px;color:#374151;margin-bottom:8px">Backup als Datei-Link (tippe zum Speichern):</div>
+            <div style="color:#f59e0b;font-weight:700;margin-bottom:8px">⚠️ Upload fehlgeschlagen: ${uploadErr.message}</div>
             <a href="data:application/octet-stream;base64,${btoa(unescape(encodeURIComponent(json)))}" download="${filename}"
-               style="display:block;background:#10b981;color:#fff;padding:14px;border-radius:12px;font-weight:900;font-size:15px;text-align:center;text-decoration:none">
+               style="display:block;background:#10b981;color:#fff;padding:14px;border-radius:12px;font-weight:900;text-align:center;text-decoration:none">
               📥 ${filename} (${sizeMB} MB)
             </a>
           `;
@@ -1738,9 +1735,7 @@ function renderSystem(host) {
 
       let backup;
       try {
-        const parsed = JSON.parse(rawText);
-        // JSONBin wraps response in {record: {...}} → auspacken
-        backup = parsed.record ? parsed.record : parsed;
+        backup = JSON.parse(rawText);
       } catch(parseErr) {
         throw new Error('Datei ist kein gültiges JSON (' + parseErr.message + ')');
       }
