@@ -1615,7 +1615,7 @@ function renderSystem(host) {
       // nativ herunter (open:false = stil in Downloads, kein "Öffnen mit"-Dialog).
       // Voraussetzung: "Downloads Folder Enabled" in Median App Studio → Permissions.
       if (isMedianWebView) {
-        const JSONBIN_API_KEY = '$2a$10$MuvCRqc.ZrS4X2maxfgf0O1RMWgGBJiKmCkzsvMaffIcL9sYHP4U6'; // ← deinen JSONBin API Key hier eintragen
+        const JSONBIN_API_KEY = '$2a$10$PLACEHOLDER_REPLACE_ME'; // ← deinen JSONBin API Key hier eintragen
 
         if (JSONBIN_API_KEY.includes('PLACEHOLDER')) {
           prog.style.display = 'block';
@@ -1647,14 +1647,19 @@ function renderSystem(host) {
           if (!uploadRes.ok) throw new Error('JSONBin Upload fehlgeschlagen: ' + uploadRes.status);
           const uploadData = await uploadRes.json();
           const binId = uploadData.metadata.id;
-          const downloadUrl = `https://api.jsonbin.io/v3/b/${binId}/latest`;
+          // ?meta=false gibt reinen JSON-Inhalt ohne {"record":{...}} Wrapper zurück
+          const downloadUrl = `https://api.jsonbin.io/v3/b/${binId}?meta=false`;
 
           prog.textContent = '⏳ Starte Download...';
 
           // Median lädt die Datei direkt in den Downloads-Ordner
           // open:false = kein "Öffnen mit"-Dialog (benötigt "Downloads Folder Enabled" in Median Permissions)
           if (window.median && window.median.share && window.median.share.downloadFile) {
-            await window.median.share.downloadFile({ url: downloadUrl, open: false });
+            await window.median.share.downloadFile({
+              url: downloadUrl,
+              open: false,
+              filename: filename   // Dateiname mit .json Endung
+            });
             prog.style.display = 'block';
             prog.innerHTML = `<div style="color:#10b981;font-weight:700">✅ Backup gespeichert in Downloads: ${filename} (${sizeMB} MB)</div>`;
             setTimeout(()=>prog.style.display='none', 6000);
@@ -1733,7 +1738,9 @@ function renderSystem(host) {
 
       let backup;
       try {
-        backup = JSON.parse(rawText);
+        const parsed = JSON.parse(rawText);
+        // JSONBin wraps response in {record: {...}} → auspacken
+        backup = parsed.record ? parsed.record : parsed;
       } catch(parseErr) {
         throw new Error('Datei ist kein gültiges JSON (' + parseErr.message + ')');
       }
