@@ -157,6 +157,102 @@
     .swipe-hint.show{opacity:1}
     .ex-entry-card{position:relative;background:#f0f4ff;padding:12px;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:transform .15s}
     .ex-entry-card.swiping{background:#d1fae5}
+
+    /* ══════════════════════════════════════════════
+       COACHOSA-INSPIRED FEATURES (v5.0)
+    ══════════════════════════════════════════════ */
+
+    /* ── PLAYER CARDS (CoachOS-Style, Kickr-Blau) ── */
+    .player-card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+    .player-card{position:relative;border-radius:14px;overflow:hidden;background:#f0f4ff;cursor:pointer;transition:transform .15s;border:2px solid #e5e7eb}
+    .player-card:active{transform:scale(.96)}
+    .player-card-img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#e0e9ff}
+    .player-card-silhouette{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e0e9ff,#c7d7f8);font-size:42px}
+    .player-card-banner{position:absolute;bottom:0;left:0;right:0;background:#3b82f6;padding:5px 4px 6px;text-align:center}
+    .player-card-name{font-size:9px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.4px;line-height:1.2;word-break:break-word}
+    .player-card.active-ath{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.3)}
+
+    /* ── LEADERBOARD (CoachOS-Style) ── */
+    .leaderboard-wrap{background:#fff;border:2px solid #e5e7eb;border-radius:20px;padding:20px;margin-bottom:16px}
+    .leaderboard-title{font-size:20px;font-weight:900;text-align:center;margin-bottom:16px}
+    .lb-podium{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:flex-end;margin-bottom:16px}
+    .lb-podium-item{display:flex;flex-direction:column;align-items:center;gap:6px}
+    .lb-podium-card{position:relative;border-radius:12px;overflow:hidden;width:80px;border:3px solid transparent}
+    .lb-podium-card.gold{border-color:#f59e0b;box-shadow:0 4px 14px rgba(245,158,11,.35)}
+    .lb-podium-card.silver{border-color:#9ca3af;box-shadow:0 4px 10px rgba(156,163,175,.3)}
+    .lb-podium-card.bronze{border-color:#cd7c2f;box-shadow:0 4px 10px rgba(205,124,47,.3)}
+    .lb-podium-card-img{width:80px;height:80px;object-fit:cover;display:block;background:#e0e9ff}
+    .lb-podium-card-sil{width:80px;height:80px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e0e9ff,#c7d7f8);font-size:32px}
+    .lb-podium-card-banner{background:#3b82f6;padding:4px;text-align:center}
+    .lb-podium-card-banner.gold{background:#f59e0b}
+    .lb-podium-card-banner.silver{background:#9ca3af}
+    .lb-podium-card-banner.bronze{background:#cd7c2f}
+    .lb-podium-card-banner span{font-size:8px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.3px}
+    .lb-podium-badge{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff}
+    .lb-podium-badge.gold{background:linear-gradient(135deg,#f59e0b,#d97706)}
+    .lb-podium-badge.silver{background:linear-gradient(135deg,#9ca3af,#6b7280)}
+    .lb-podium-badge.bronze{background:linear-gradient(135deg,#cd7c2f,#a05a1e)}
+    .lb-podium-val{font-size:11px;color:#6b7280;font-weight:700}
+    .lb-list-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6}
+    .lb-list-item:last-child{border-bottom:none}
+    .lb-list-rank{font-size:16px;font-weight:900;color:#6b7280;min-width:20px}
+    .lb-list-ava{width:38px;height:38px;border-radius:10px;object-fit:cover;background:#e0e9ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden}
+    .lb-list-name{flex:1;font-weight:700;font-size:14px}
+    .lb-list-val{font-size:14px;font-weight:900;color:#3b82f6}
+
+    /* ── CALENDAR (CoachOS-Style) ── */
+    .cal-wrap{background:#fff;border:2px solid #e5e7eb;border-radius:20px;padding:16px;margin-bottom:16px}
+    .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .cal-month-title{font-size:17px;font-weight:900}
+    .cal-nav-btn{width:36px;height:36px;border-radius:50%;background:#f0f4ff;border:none;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0;min-height:36px;padding:0;color:#374151}
+    .cal-view-toggle{display:flex;gap:6px}
+    .cal-view-btn{width:34px;height:34px;border-radius:8px;background:#f0f4ff;border:2px solid transparent;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0;min-height:34px;padding:0}
+    .cal-view-btn.active{background:#3b82f6;color:#fff}
+    /* Week strip */
+    .cal-week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+    .cal-week-day-label{text-align:center;font-size:11px;font-weight:700;color:#9ca3af;padding:2px 0}
+    .cal-week-day{text-align:center;padding:6px 2px;border-radius:10px;cursor:pointer;transition:.15s;position:relative}
+    .cal-week-day.today{background:#3b82f6;color:#fff;font-weight:900}
+    .cal-week-day.has-event::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#3b82f6}
+    .cal-week-day.today.has-event::after{background:#fff}
+    .cal-week-day.selected{background:#dbeafe;font-weight:900;color:#3b82f6}
+    .cal-week-day-num{font-size:14px;font-weight:700}
+    /* Month grid */
+    .cal-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+    .cal-month-cell{text-align:center;padding:7px 2px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s;position:relative}
+    .cal-month-cell.other-month{color:#d1d5db}
+    .cal-month-cell.today{background:#3b82f6;color:#fff;font-weight:900}
+    .cal-month-cell.has-event::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#3b82f6}
+    .cal-month-cell.today.has-event::after{background:#fff}
+    .cal-month-cell.selected{background:#dbeafe;color:#3b82f6;font-weight:900}
+    /* Event card under calendar */
+    .cal-event-card{background:#f0f4ff;border-radius:14px;padding:14px 16px;margin-top:10px;border-left:4px solid #3b82f6}
+    .cal-event-title{font-size:13px;color:#6b7280;font-weight:600;margin-bottom:2px}
+    .cal-event-main{font-size:18px;font-weight:900;margin-bottom:8px}
+    .cal-event-times{display:flex;gap:10px;margin-bottom:10px}
+    .cal-event-time-box{background:#fff;border-radius:10px;padding:8px 14px;text-align:center;flex:1;border:2px solid #e5e7eb}
+    .cal-event-time-label{font-size:10px;color:#9ca3af;font-weight:700;margin-bottom:2px}
+    .cal-event-time-val{font-size:20px;font-weight:900}
+    .cal-event-stat{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:13px;font-weight:700}
+    .cal-event-stat-num{font-size:22px;font-weight:900}
+    .cal-event-stat-num.green{color:#10b981}
+    .cal-event-stat-num.red{color:#ef4444}
+    .cal-event-stat-num.gray{color:#9ca3af}
+    .cal-add-btn{background:#3b82f6;color:#fff;border-radius:12px;padding:12px;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;border:none;width:100%;margin-top:10px;min-height:44px}
+
+    /* ── GUIDED TOUR TOOLTIP ── */
+    .tour-overlay{position:fixed;inset:0;z-index:3000;pointer-events:none}
+    .tour-overlay.active{pointer-events:all}
+    .tour-spotlight{position:absolute;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.55);transition:all .3s ease;pointer-events:none}
+    .tour-tooltip{position:absolute;background:#1a2332;color:#fff;border-radius:16px;padding:16px 20px;max-width:300px;width:calc(100vw - 48px);z-index:3001;box-shadow:0 8px 32px rgba(0,0,0,.4);transition:all .3s ease}
+    .tour-tooltip::before{content:'';position:absolute;width:14px;height:14px;background:#1a2332;transform:rotate(45deg);border-radius:2px}
+    .tour-tooltip.arrow-top::before{top:-7px;left:30px}
+    .tour-tooltip.arrow-bottom::before{bottom:-7px;left:30px}
+    .tour-tooltip.arrow-top-right::before{top:-7px;right:30px}
+    .tour-tooltip-text{font-size:15px;font-weight:600;line-height:1.5;margin-bottom:12px}
+    .tour-tooltip-footer{display:flex;align-items:center;justify-content:space-between}
+    .tour-step-count{font-size:13px;color:rgba(255,255,255,.6);font-weight:600}
+    .tour-btn{background:#fff;color:#1a2332;border:none;border-radius:999px;padding:8px 20px;font-weight:900;font-size:14px;cursor:pointer;min-height:36px}
   </style>
 </head>
 <body>
@@ -168,6 +264,18 @@
 
 <div class="athletes" id="athletes"></div>
 <main id="main"></main>
+
+<!-- ── GUIDED TOUR OVERLAY ── -->
+<div class="tour-overlay" id="tourOverlay">
+  <div class="tour-spotlight" id="tourSpotlight"></div>
+  <div class="tour-tooltip" id="tourTooltip">
+    <div class="tour-tooltip-text" id="tourText"></div>
+    <div class="tour-tooltip-footer">
+      <span class="tour-step-count" id="tourStepCount"></span>
+      <button class="tour-btn" id="tourNextBtn">Weiter</button>
+    </div>
+  </div>
+</div>
 
 <nav>
   <div class="nav-item" data-tab="tracking"><div class="nav-icon">🏋️</div>Training</div>
@@ -700,6 +808,380 @@ function showToast(msg, ms=2500) {
 }
 
 // ================================================================
+// v5.0 – GUIDED TOUR (CoachOS-Style)
+// ================================================================
+const TOUR_STEPS = {
+  tracking: [
+    { text: 'Hier erfasst du die Leistungen deiner Athleten', target: '[data-tab="tracking"]', arrow: 'arrow-top' },
+    { text: 'Wähle einen Athleten aus – tippe auf die Karte', target: '.athletes', arrow: 'arrow-top' },
+    { text: 'Wähle ein Training und starte die Aufzeichnung', target: '#main', arrow: 'arrow-top' },
+  ],
+  statistics: [
+    { text: 'Hier siehst du den Fortschritt deiner Athleten', target: '[data-tab="statistics"]', arrow: 'arrow-top' },
+    { text: 'Wechsle zwischen verschiedenen Zeitfenstern', target: '#main', arrow: 'arrow-top' },
+  ],
+  athletes: [
+    { text: 'Hier verwaltest du deine Athleten', target: '[data-tab="athletes"]', arrow: 'arrow-top' },
+    { text: 'Tippe auf einen Athleten um Details zu sehen oder ein Foto hinzuzufügen', target: '#main', arrow: 'arrow-top' },
+    { text: 'Ziehe die Karten per Drag & Drop um die Reihenfolge zu ändern', target: '.athletes', arrow: 'arrow-top' },
+  ],
+};
+
+let _tourSteps = [];
+let _tourIdx   = 0;
+
+function startTour(tab) {
+  _tourSteps = TOUR_STEPS[tab] || TOUR_STEPS.tracking;
+  _tourIdx   = 0;
+  _showTourStep();
+}
+
+function _showTourStep() {
+  const overlay  = $('tourOverlay');
+  const spot     = $('tourSpotlight');
+  const tooltip  = $('tourTooltip');
+  const text     = $('tourText');
+  const counter  = $('tourStepCount');
+  const nextBtn  = $('tourNextBtn');
+
+  if (_tourIdx >= _tourSteps.length) {
+    overlay.classList.remove('active');
+    overlay.style.display = 'none';
+    state.tourSeen = state.tourSeen || {};
+    state.tourSeen[state.tab] = true;
+    save();
+    return;
+  }
+
+  overlay.style.display = 'block';
+  overlay.classList.add('active');
+
+  const step   = _tourSteps[_tourIdx];
+  const target = document.querySelector(step.target);
+
+  text.textContent    = step.text;
+  counter.textContent = `${_tourIdx + 1} von ${_tourSteps.length}`;
+  nextBtn.textContent = _tourIdx === _tourSteps.length - 1 ? 'Fertig' : 'Weiter';
+  tooltip.className   = `tour-tooltip ${step.arrow || 'arrow-top'}`;
+
+  if (target) {
+    const r = target.getBoundingClientRect();
+    const pad = 6;
+    spot.style.cssText = `
+      top:${r.top - pad}px; left:${r.left - pad}px;
+      width:${r.width + pad*2}px; height:${r.height + pad*2}px;
+    `;
+    // Position tooltip below or above target
+    const spaceBelow = window.innerHeight - r.bottom;
+    if (spaceBelow > 160 || step.arrow === 'arrow-top') {
+      tooltip.style.top  = `${r.bottom + 14}px`;
+      tooltip.style.left = `${Math.max(12, Math.min(r.left, window.innerWidth - 312))}px`;
+      tooltip.style.bottom = 'auto';
+    } else {
+      tooltip.style.bottom = `${window.innerHeight - r.top + 14}px`;
+      tooltip.style.top    = 'auto';
+      tooltip.style.left   = `${Math.max(12, Math.min(r.left, window.innerWidth - 312))}px`;
+    }
+  } else {
+    spot.style.cssText = 'top:0;left:0;width:0;height:0';
+    tooltip.style.cssText = 'top:50%;left:50%;transform:translate(-50%,-50%)';
+  }
+
+  nextBtn.onclick = () => { _tourIdx++; _showTourStep(); };
+}
+
+function maybeStartTour() {
+  const seen = state.tourSeen || {};
+  if (!seen[state.tab] && TOUR_STEPS[state.tab]) {
+    setTimeout(() => startTour(state.tab), 400);
+  }
+}
+
+// ================================================================
+// v5.0 – LEADERBOARD (CoachOS-Style mit Kickr-Blau)
+// ================================================================
+function calcLeaderboard() {
+  return state.athletes.map(ath => {
+    let total = 0, sessionCount = 0;
+    state.trainings.forEach(tr => {
+      let hasData = false;
+      tr.exercises?.forEach(ex => {
+        const recs = tr.records?.[`${ath.id}_${ex.id}`] || [];
+        recs.forEach(r => { total += parseFloat(r.value)||0; if(r.value) hasData=true; });
+      });
+      if (hasData) sessionCount++;
+    });
+    return { ath, total, sessionCount };
+  })
+  .filter(x => x.sessionCount > 0)
+  .sort((a,b) => b.sessionCount - a.sessionCount || b.total - a.total);
+}
+
+async function renderLeaderboard(host) {
+  const ranked = calcLeaderboard();
+  if (!ranked.length) {
+    host.innerHTML = `<div class="leaderboard-wrap">
+      <div class="leaderboard-title">🏆 Leaderboard</div>
+      <p style="text-align:center;color:#9ca3af;padding:20px">Noch keine Trainingsdaten vorhanden</p>
+    </div>`;
+    return;
+  }
+
+  const medalClass = ['gold','silver','bronze'];
+  const medalNum   = ['1','2','3'];
+
+  // Podium (top 3)
+  const podiumOrder = [1, 0, 2]; // Silver left, Gold center, Bronze right
+  let podiumHtml = '';
+  podiumOrder.forEach(i => {
+    const entry = ranked[i];
+    if (!entry) { podiumHtml += `<div></div>`; return; }
+    const cls   = medalClass[i];
+    const thumb = _imgCache.get(entry.ath.photoId) || null;
+    const imgEl = thumb
+      ? `<img class="lb-podium-card-img" src="${thumb}"/>`
+      : `<div class="lb-podium-card-sil">👤</div>`;
+    podiumHtml += `
+      <div class="lb-podium-item">
+        <div class="lb-podium-card ${cls}">
+          ${imgEl}
+          <div class="lb-podium-card-banner ${cls}">
+            <span>${esc(entry.ath.name.split(' ')[0].toUpperCase())} ${esc((entry.ath.name.split(' ')[1]||'').toUpperCase())}</span>
+          </div>
+        </div>
+        <div class="lb-podium-badge ${cls}">${medalNum[i]}</div>
+        <div class="lb-podium-val">- PRÄ.</div>
+      </div>`;
+  });
+
+  // List (rank 4+)
+  let listHtml = '';
+  ranked.slice(3).forEach((entry, idx) => {
+    const thumb = _imgCache.get(entry.ath.photoId) || null;
+    const avaEl = thumb
+      ? `<img class="lb-list-ava" src="${thumb}" style="border-radius:10px;width:38px;height:38px;object-fit:cover"/>`
+      : `<div class="lb-list-ava">👤</div>`;
+    listHtml += `<div class="lb-list-item">
+      <div class="lb-list-rank">${idx+4}</div>
+      ${avaEl}
+      <div class="lb-list-name">${esc(entry.ath.name)}</div>
+      <div class="lb-list-val">- PRÄ.</div>
+    </div>`;
+  });
+
+  host.innerHTML = `<div class="leaderboard-wrap">
+    <div class="leaderboard-title">🏆 Leaderboard</div>
+    <div class="lb-podium">${podiumHtml}</div>
+    ${listHtml}
+    ${ranked.length < 3 ? `<p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:8px">Füge mehr Athleten hinzu um das Podium zu füllen</p>` : ''}
+  </div>`;
+
+  // Lazy-load podium images
+  await _lazyLoadLeaderboardAvatars(ranked);
+}
+
+async function _lazyLoadLeaderboardAvatars(ranked) {
+  for (const entry of ranked) {
+    if (entry.ath.photoId && !_imgCache.has(entry.ath.photoId)) {
+      await cachedThumb(entry.ath.photoId);
+    }
+  }
+}
+
+// ================================================================
+// v5.0 – CALENDAR (CoachOS-Style)
+// ================================================================
+let _calView       = 'week'; // 'week' | 'month'
+let _calDate       = new Date(); // currently viewed date
+let _calSelectedDate = today();
+
+function renderCalendar(host) {
+  const todayStr   = today();
+  const eventDates = _getEventDates();
+  const trainings  = _getTrainingsForDate(_calSelectedDate);
+
+  const monthNames = ['Januar','Februar','März','April','Mai','Juni',
+                      'Juli','August','September','Oktober','November','Dezember'];
+  const dayLabels  = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+
+  let gridHtml = '';
+  if (_calView === 'week') {
+    // Build week strip (Mon–Sun of _calDate's week)
+    const baseDate = new Date(_calDate);
+    const dow = (baseDate.getDay() + 6) % 7;
+    baseDate.setDate(baseDate.getDate() - dow);
+
+    let labelsHtml = dayLabels.map(d => `<div class="cal-week-day-label">${d}</div>`).join('');
+    let daysHtml   = '';
+    for (let i = 0; i < 7; i++) {
+      const d    = new Date(baseDate); d.setDate(baseDate.getDate() + i);
+      const ds   = _dateStr(d);
+      const isToday    = ds === todayStr;
+      const isSelected = ds === _calSelectedDate;
+      const hasEvent   = eventDates.has(ds);
+      const cls = `${isToday ? 'today' : ''} ${isSelected && !isToday ? 'selected' : ''} ${hasEvent ? 'has-event' : ''}`;
+      daysHtml += `<div class="cal-week-day ${cls}" data-cal-date="${ds}">
+        <div class="cal-week-day-num">${d.getDate()}</div>
+      </div>`;
+    }
+    gridHtml = `<div class="cal-week-strip">${labelsHtml}</div><div class="cal-week-strip">${daysHtml}</div>`;
+  } else {
+    // Month grid
+    const year = _calDate.getFullYear(), month = _calDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay  = new Date(year, month+1, 0);
+    const startDow = (firstDay.getDay() + 6) % 7;
+
+    let labelsHtml = dayLabels.map(d => `<div class="cal-week-day-label">${d}</div>`).join('');
+    let cellsHtml  = '';
+    // Leading empty cells
+    for (let i = 0; i < startDow; i++) {
+      const d = new Date(year, month, 1 - (startDow - i));
+      const ds = _dateStr(d);
+      const hasEvent = eventDates.has(ds);
+      cellsHtml += `<div class="cal-month-cell other-month ${hasEvent?'has-event':''}" data-cal-date="${ds}">${d.getDate()}</div>`;
+    }
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const dt  = new Date(year, month, d);
+      const ds  = _dateStr(dt);
+      const isToday    = ds === todayStr;
+      const isSelected = ds === _calSelectedDate;
+      const hasEvent   = eventDates.has(ds);
+      const cls = `${isToday?'today':''} ${isSelected&&!isToday?'selected':''} ${hasEvent?'has-event':''}`;
+      cellsHtml += `<div class="cal-month-cell ${cls}" data-cal-date="${ds}">${d}</div>`;
+    }
+    gridHtml = `<div class="cal-month-grid">${labelsHtml}${cellsHtml}</div>`;
+  }
+
+  // Build event card for selected date
+  const selTrainings = _getTrainingsForDate(_calSelectedDate);
+  const isToday  = _calSelectedDate === todayStr;
+  const dateLabel = isToday ? 'Heute' : _fmtCalDate(_calSelectedDate);
+  let eventCardHtml = '';
+
+  if (selTrainings.length) {
+    selTrainings.forEach(tr => {
+      const tpl = state.templates.find(t=>t.id===tr.tplId);
+      eventCardHtml += `<div class="cal-event-card">
+        <div class="cal-event-title">${esc(tpl?.name || 'Training')}</div>
+        <div class="cal-event-main">${dateLabel}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:700;color:#6b7280">📋 ${tr.exercises?.length||0} Übungen</span>
+          <span style="font-size:13px;font-weight:700;color:#6b7280">👥 ${state.activeIds.length} Athleten</span>
+        </div>
+        <button class="cal-add-btn" data-cal-train="${tr.id}">📊 Training öffnen</button>
+      </div>`;
+    });
+  } else {
+    eventCardHtml = `<div class="cal-event-card" style="border-color:#e5e7eb;background:#f9fafb">
+      <div class="cal-event-title">Kein Training</div>
+      <div class="cal-event-main">${dateLabel}</div>
+      <p style="color:#9ca3af;font-size:13px;margin-bottom:8px">Noch kein Training für diesen Tag erfasst</p>
+    </div>`;
+  }
+
+  const monthTitle = _calView === 'week'
+    ? `${monthNames[_calDate.getMonth()]} ${_calDate.getFullYear()}`
+    : `${monthNames[_calDate.getMonth()]} ${_calDate.getFullYear()}`;
+
+  host.innerHTML = `<div class="cal-wrap">
+    <div class="cal-header">
+      <div>
+        <div class="cal-month-title" id="calMonthTitle" style="cursor:pointer">${monthTitle}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="cal-view-toggle">
+          <button class="cal-view-btn ${_calView==='week'?'active':''}" id="calWeekBtn" title="Wochenansicht">▤</button>
+          <button class="cal-view-btn ${_calView==='month'?'active':''}" id="calMonthBtn" title="Monatsansicht">▦</button>
+        </div>
+        <button class="cal-nav-btn" id="calPrev">‹</button>
+        <button class="cal-nav-btn" id="calNext">›</button>
+      </div>
+    </div>
+    ${gridHtml}
+    ${eventCardHtml}
+  </div>`;
+
+  // Bind events
+  host.querySelectorAll('[data-cal-date]').forEach(el => {
+    el.onclick = () => {
+      _calSelectedDate = el.getAttribute('data-cal-date');
+      _calDate = new Date(_calSelectedDate + 'T12:00');
+      renderCalendar(host);
+    };
+  });
+
+  $('calPrev').onclick = () => {
+    if (_calView === 'week') _calDate.setDate(_calDate.getDate() - 7);
+    else _calDate.setMonth(_calDate.getMonth() - 1);
+    renderCalendar(host);
+  };
+  $('calNext').onclick = () => {
+    if (_calView === 'week') _calDate.setDate(_calDate.getDate() + 7);
+    else _calDate.setMonth(_calDate.getMonth() + 1);
+    renderCalendar(host);
+  };
+  $('calWeekBtn').onclick = () => { _calView = 'week'; renderCalendar(host); };
+  $('calMonthBtn').onclick = () => { _calView = 'month'; renderCalendar(host); };
+
+  // Jump to today on month title tap
+  $('calMonthTitle').onclick = () => {
+    _calDate = new Date(); _calSelectedDate = today(); renderCalendar(host);
+  };
+
+  // Open training from calendar
+  host.querySelectorAll('[data-cal-train]').forEach(btn => {
+    btn.onclick = () => {
+      const trId = btn.getAttribute('data-cal-train');
+      state.trainId = trId; state.tab = 'tracking'; save(); render();
+    };
+  });
+}
+
+function _getEventDates() {
+  const dates = new Set();
+  state.trainings.forEach(tr => { if (tr.date) dates.add(tr.date); });
+  return dates;
+}
+function _getTrainingsForDate(dateStr) {
+  return state.trainings.filter(tr => tr.date === dateStr);
+}
+function _dateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function _fmtCalDate(ds) {
+  if (!ds) return '';
+  const d = new Date(ds + 'T12:00');
+  return d.toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'2-digit'});
+}
+
+// ================================================================
+// v5.0 – PLAYER CARD GRID (CoachOS-Style)
+// ================================================================
+async function renderPlayerCardGrid(athletes, opts = {}) {
+  const { onSelect, selectedId, showActive = false } = opts;
+  const cards = await Promise.all(athletes.map(async ath => {
+    const thumb = _imgCache.get(ath.photoId) || await cachedThumb(ath.photoId) || null;
+    const isActive = showActive && state.activeIds.includes(ath.id);
+    const isSelected = selectedId === ath.id;
+    const imgEl = thumb
+      ? `<img class="player-card-img" src="${thumb}"/>`
+      : `<div class="player-card-silhouette">👤</div>`;
+    const nameParts = ath.name.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName  = nameParts.slice(1).join(' ') || '';
+    return `<div class="player-card ${isActive||isSelected?'active-ath':''}" data-pc-ath="${ath.id}">
+      ${imgEl}
+      <div class="player-card-banner">
+        <div class="player-card-name">${esc(firstName.toUpperCase())}<br>${esc(lastName.toUpperCase())}</div>
+      </div>
+    </div>`;
+  }));
+
+  return `<div class="player-card-grid">${cards.join('')}</div>`;
+}
+
+// ================================================================
 // DEFAULT STATE
 // ================================================================
 function buildDefaultState() {
@@ -1136,9 +1618,19 @@ function showUndo() {
 // ================================================================
 // RENDER STATS (original logic, adds cached bench avatars)
 // ================================================================
-function renderStats(host) {
+async function renderStats(host) {
+  // Show calendar + leaderboard at top (CoachOS-style)
+  const calContainer = document.createElement('div');
+  const lbContainer  = document.createElement('div');
+  host.innerHTML = '';
+  host.appendChild(calContainer);
+  host.appendChild(lbContainer);
+
+  renderCalendar(calContainer);
+  await renderLeaderboard(lbContainer);
+
   const ath=state.athletes.find(a=>a.id===state.athId);
-  if(!ath){host.innerHTML=`<div class="card"><h2>Kein Athlet ausgewählt</h2></div>`;return;}
+  if(!ath) return;
 
   const data={total:0,trainings:0,exercises:{}};
   state.trainings.forEach(tr=>{
@@ -1153,8 +1645,9 @@ function renderStats(host) {
     });if(hasData)data.trainings++;
   });
 
-  if(!data.total){host.innerHTML=`<div class="card"><h2>Keine Daten</h2><p>${esc(ath.name)} hat noch keine Einträge</p></div>`;return;}
+  if(!data.total) return;
 
+  const statsDiv = document.createElement('div');
   let html=`<div class="card"><h2>Statistik für ${esc(ath.name)}</h2><div class="stat-grid">
     <div class="stat-box"><div class="stat-val">${data.total}</div><div class="stat-lbl">Einträge</div></div>
     <div class="stat-box"><div class="stat-val">${data.trainings}</div><div class="stat-lbl">Trainings</div></div>
@@ -1184,9 +1677,9 @@ function renderStats(host) {
       ${bench.length>1?`<div class="bench"><h4 style="margin:0 0 12px">📊 Athleten-Vergleich</h4>${bench.map((b,i)=>`<div class="bench-item ${b.id===ath.id?'me':''}"><div class="bench-rank">${i+1}.</div><img class="bench-ava" src="${_imgCache.get(b.photoId)||b.photo||DEFAULT_AVATAR}" data-lazy-bench="${b.photoId||''}"/><div class="bench-name">${esc(b.name)}</div><div class="bench-val">${b.best}</div></div>`).join('')}</div>`:''}
     </div>`;
   });
-  host.innerHTML=html;
+  statsDiv.innerHTML = html;
+  host.appendChild(statsDiv);
 
-  // Lazy-load bench avatars
   $$('[data-lazy-bench]').forEach(async img=>{
     const id=img.getAttribute('data-lazy-bench');
     if(id&&!_imgCache.has(id)){const src=await cachedThumb(id);if(src)img.src=src;}
@@ -1361,14 +1854,21 @@ function renderTemplates(host) {
 let _athSort = 'az'; // 'az' | 'za'
 let _athExpanded = new Set(); // IDs of expanded athletes
 
-function renderAthletes(host) {
-  // Sort athletes
+async function renderAthletes(host) {
+  // Player card grid (CoachOS-style) at top
   const sorted = [...state.athletes].sort((a,b) =>
     _athSort === 'az' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
   );
 
-  let html = `<div class="card">
-    <h2>👥 Athleten-Verwaltung</h2>
+  const cardGridHtml = await renderPlayerCardGrid(sorted, { showActive: true, selectedId: state.athId });
+
+  let html = `
+  <div class="leaderboard-wrap" style="margin-bottom:16px">
+    <div class="leaderboard-title" style="font-size:16px;margin-bottom:12px">👥 Meine Athleten</div>
+    ${cardGridHtml}
+  </div>
+  <div class="card">
+    <h2>⚙️ Athleten-Verwaltung</h2>
     <button id="addAth" style="margin-top:12px">➕ Neuer Athlet</button>
     <div class="row" style="margin-top:12px;gap:8px">
       <button class="small" id="athExpandAll">⬇ Alle ausklappen</button>
@@ -2004,7 +2504,7 @@ $('confirmEditDate').onclick=()=>{
   const tr=state.trainings.find(t=>t.id===tid);
   if(tr){tr.date=newDate;save();closeEditDateModal();render();}
 };
-$$('.nav-item').forEach(item=>{item.onclick=()=>{state.tab=item.getAttribute('data-tab');save();render();};});
+// Nav click handled in boot()
 
 // ================================================================
 // BOOT
@@ -2039,8 +2539,33 @@ $$('.nav-item').forEach(item=>{item.onclick=()=>{state.tab=item.getAttribute('da
   // Pre-load all athlete thumbnails into memory cache
   await preloadAthThumbs();
 
+  // Bind nav tab clicks to trigger guided tour on first visit
+  $$('.nav-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const tab = el.getAttribute('data-tab');
+      state.tab = tab; save(); render();
+      maybeStartTour();
+    });
+  });
+
+  // Bind player card clicks (delegated – cards are rendered async)
+  document.addEventListener('click', e => {
+    const card = e.target.closest('[data-pc-ath]');
+    if (card) {
+      const athId = card.getAttribute('data-pc-ath');
+      if (state.athId !== athId) { state.athId = athId; save(); render(); }
+    }
+  });
+
+  // Init calendar to today
+  _calDate = new Date(); _calSelectedDate = today();
+
   render();
-  console.log('✅ Kickr PRO v4.0 – Export/Import, einklappbare Listen, grüner Wochentag, 5 Fotos aktiv');
+
+  // Start tour on first boot for tracking tab
+  maybeStartTour();
+
+  console.log('✅ Kickr PRO v5.0 – CoachOS-UI: Guided Tour, Leaderboard, Kalender, Spielerkarten');
 })();
 </script>
 </body>
