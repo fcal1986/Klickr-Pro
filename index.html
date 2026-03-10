@@ -1324,14 +1324,18 @@ function renderTracking(host) {
     if (!t.exercises?.length) return;
     const active = t.id===tr.id?'active':'';
     const photo  = PHOTOS.find(p=>p.id===(t.exercises[0]?.exPhotoId||'e1'))||PHOTOS[0];
-    // Green border if training was completed today
-    const doneToday = t.date === todayStr && Object.values(t.records||{}).some(recs=>recs.length>0);
-    const borderStyle = doneToday ? 'border-color:#10b981;box-shadow:0 4px 12px rgba(16,185,129,.3)' : '';
-    const dayLabel = doneToday ? '<div style="position:absolute;top:8px;left:8px;background:#10b981;color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:8px">✅ Heute</div>' : '';
-    html += `<div class="tr-card ${active}" data-tr="${t.id}" style="${borderStyle}">
+
+    // Ampel: hat der aktive Athlet mindestens einen Eintrag in diesem Training?
+    const athHasEntry = ath && t.exercises.some(ex => {
+      const recs = t.records?.[`${ath.id}_${ex.id}`] || [];
+      return recs.length > 0;
+    });
+    const ampel = `<div style="position:absolute;top:8px;left:8px;width:14px;height:14px;border-radius:50%;background:${athHasEntry?'#10b981':'#ef4444'};box-shadow:0 0 0 2px #fff,0 0 8px ${athHasEntry?'rgba(16,185,129,.6)':'rgba(239,68,68,.6)'}"></div>`;
+
+    html += `<div class="tr-card ${active}" data-tr="${t.id}">
       <button class="del-btn" data-del="${t.id}" style="top:8px;right:46px">🗑</button>
       <button class="del-btn" data-edit-date="${t.id}" style="top:8px;right:8px;background:#3b82f6">📅</button>
-      ${dayLabel}
+      ${ampel}
       <img src="${photo.url}"/>
       <div class="tr-info"><div class="tr-title">${esc(t.tplName)}</div><div class="tr-date">${fmtDate(t.date)}</div></div>
       ${t.note?`<div class="tr-note-badge">📝 ${esc(t.note)}</div>`:''}
@@ -1463,10 +1467,20 @@ function renderTracking(host) {
   $$('[data-tr]').forEach(el => {
     el.onclick = e => {
       if (e.target.closest('.del-btn')) return;
+      // Scroll-Position merken bevor render() den DOM neu aufbaut
+      const scrollRow = el.closest('.scroll-row');
+      const savedScrollLeft = scrollRow ? scrollRow.scrollLeft : 0;
+
       state.trainId = el.getAttribute('data-tr');
       const t = state.trainings.find(x=>x.id===state.trainId);
       if (t) state.exId = t.exercises[0]?.id||'';
       save(); render();
+
+      // Scroll-Position nach render() wiederherstellen
+      requestAnimationFrame(() => {
+        const newScrollRow = document.querySelector('.scroll-row');
+        if (newScrollRow) newScrollRow.scrollLeft = savedScrollLeft;
+      });
     };
   });
   $$('[data-edit-date]').forEach(btn => {
