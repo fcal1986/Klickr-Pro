@@ -78,7 +78,12 @@
     .del-btn{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#ef4444;border:none;font-size:16px;padding:0;display:flex;align-items:center;justify-content:center;z-index:10;margin:0;min-height:32px}
     .ex-chip{display:inline-flex;padding:10px 16px;background:#f0f4ff;border:2px solid #e5e7eb;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;margin:4px;min-height:44px;align-items:center;gap:8px;transition:all .2s}
     .ex-chip.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
-    .timer-big{font-size:48px;font-weight:900;text-align:center;color:#3b82f6;font-family:ui-monospace,monospace;margin:20px 0}
+    .timer-big{font-size:56px;font-weight:900;text-align:center;color:#1e293b;font-family:ui-monospace,monospace;margin:16px 0;letter-spacing:-1px;line-height:1}
+    .timer-big.running{color:#10b981}
+    .timer-big.saved{color:#3b82f6}
+    .timer-toggle-btn{font-size:18px;font-weight:900;min-height:56px;border-radius:999px;transition:all .2s;letter-spacing:.3px}
+    .timer-toggle-btn.btn-start{background:#10b981}
+    .timer-toggle-btn.btn-stop{background:#ef4444}
     .big-input{font-size:32px;font-weight:900;text-align:center;padding:20px;background:#f0f4ff;border:3px solid #3b82f6;min-height:80px;border-radius:16px}
     label{display:block;font-size:12px;font-weight:700;color:#6b7280;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.5px}
     .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:16px 0}
@@ -352,7 +357,7 @@
       <h1 id="title">⚡ Kickr Training PRO</h1>
       <div class="sub" id="subtitle">Lade...</div>
     </div>
-    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.9</span>
+    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v6.0</span>
   </div>
 </header>
 
@@ -466,7 +471,7 @@ const GROUP_COLORS = [
   { id:'teal',   hex:'#14b8a6', light:'#ccfbf1' },
 ];
 
-const APP_VERSION = '5.9';
+const APP_VERSION = '6.0';
 
 /**
  * Gibt den "besten" Wert zurück abhängig von timeDir.
@@ -1305,6 +1310,69 @@ function buildDefaultState() {
 }
 let state = {};
 
+// ── Timer-State (überlebt render()-Aufrufe) ──
+const _timer = {
+  iv:      null,    // setInterval-Handle
+  ms:      0,       // angesammelte Zeit in Millisekunden
+  running: false,
+  savedMs: null,    // zuletzt gespeicherter Wert (null = noch nicht gespeichert)
+  exKey:   '',      // 'athId_exId' — für welche Übung der Timer läuft
+
+  reset() {
+    if (this.iv) { clearInterval(this.iv); this.iv = null; }
+    this.ms = 0; this.running = false; this.savedMs = null;
+    this._update();
+  },
+
+  start() {
+    if (this.running) return;
+    const offset = Date.now() - this.ms;
+    this.running = true;
+    this.iv = setInterval(() => {
+      this.ms = Date.now() - offset;
+      this._update();
+    }, 83); // ~12fps — flüssig ohne Overhead
+    this._update();
+  },
+
+  stop() {
+    if (!this.running) return;
+    clearInterval(this.iv); this.iv = null;
+    this.running = false;
+    this._update();
+  },
+
+  get seconds() { return this.ms / 1000; },
+
+  fmt() {
+    const totalMs = this.ms;
+    const min = Math.floor(totalMs / 60000);
+    const sec = Math.floor((totalMs % 60000) / 1000);
+    const d   = Math.floor((totalMs % 1000) / 100);
+    return `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${d}`;
+  },
+
+  _update() {
+    const el = document.getElementById('timerDisplay');
+    if (!el) return;
+    el.textContent = this.fmt();
+    el.className   = 'timer-big' + (this.running ? ' running' : this.savedMs !== null ? ' saved' : '');
+
+    const btn = document.getElementById('timerToggle');
+    if (!btn) return;
+    if (this.running) {
+      btn.textContent  = '⏸  Stop';
+      btn.className    = 'timer-toggle-btn btn-stop';
+    } else {
+      btn.textContent  = this.ms > 0 ? '▶  Weiter' : '▶  Start';
+      btn.className    = 'timer-toggle-btn btn-start';
+    }
+
+    const resetBtn = document.getElementById('timerReset');
+    if (resetBtn) resetBtn.disabled = this.running;
+  }
+};
+
 // ================================================================
 // UTILS
 // ================================================================
@@ -1692,7 +1760,10 @@ function render() {
       });
       el.addEventListener('pointerup',    () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
       el.addEventListener('pointerleave', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
-      el.onclick = () => { state.athId = aid; save(); render(); };
+      el.onclick = () => {
+        if (aid !== state.athId) { _timer.reset(); _timer.exKey = ''; }
+        state.athId = aid; save(); render();
+      };
     });
 
     // + Slot: Modal öffnen (neuer Athlet ODER bestehender aus Nicht-Gruppe)
@@ -1860,14 +1931,23 @@ function renderTracking(host) {
         <div style="flex:1"><label>👉 Rechts</label><input type="number" id="inpR" class="big-input" placeholder="0"/></div>
       </div>`;
     } else if (ex.type==='time') {
-      html += `<div class="timer-big" id="timer">00:00.0</div>
-        <div class="row">
-          <button id="timerStart">▶ Start</button>
-          <button id="timerStop">⏸ Stop</button>
-          <button id="timerReset">↻ Reset</button>
-        </div>
-        <label style="margin-top:16px">Zeit (Sekunden)</label>
-        <input type="number" id="inp" class="big-input" placeholder="0.0" step="0.1"/>`;
+      const tDir = getTimeDir(ex);
+      const dirHint = tDir === 'asc'
+        ? '<span style="font-size:11px;color:#94a3b8">🏃 kürzer = besser</span>'
+        : '<span style="font-size:11px;color:#94a3b8">🏅 länger = besser</span>';
+      const savedStr = _timer.savedMs !== null
+        ? `<div style="font-size:12px;color:#3b82f6;font-weight:700;text-align:center;margin-top:-8px;margin-bottom:8px">✓ Gespeichert: ${(_timer.savedMs/1000).toFixed(2)}s</div>`
+        : '';
+      html += `
+        <div style="text-align:center;margin-bottom:4px">${dirHint}</div>
+        <div class="timer-big ${_timer.running?'running':(_timer.savedMs!==null?'saved':'')}" id="timerDisplay">${_timer.fmt()}</div>
+        ${savedStr}
+        <div class="row" style="gap:10px;margin-bottom:0">
+          <button id="timerToggle" class="timer-toggle-btn ${_timer.running?'btn-stop':'btn-start'}" style="flex:2">
+            ${_timer.running ? '⏸  Stop' : (_timer.ms > 0 ? '▶  Weiter' : '▶  Start')}
+          </button>
+          <button id="timerReset" style="flex:1;background:#f1f5f9;color:#475569;font-size:14px" ${_timer.running?'disabled':''}>↺ Reset</button>
+        </div>`;
     }
 
     html += `<label>📝 Notiz (optional)</label>
@@ -1992,23 +2072,78 @@ function renderTracking(host) {
       save(); render(); showUndo();
     };
   });
-  $$('[data-ex]').forEach(el=>{el.onclick=()=>{state.exId=el.getAttribute('data-ex');save();render();};});
-
-  if ($('saveRec')&&ex) {
-    $('saveRec').onclick = () => {
-      const key=`${ath.id}_${ex.id}`; if(!tr.records[key]) tr.records[key]=[];
-      const note=$('note')?.value||''; const ts=new Date().toISOString();
-      if (ex.type==='reps'){const v=$('inp')?.value;if(!v||v==='0')return alert('Bitte Anzahl eingeben');tr.records[key].push({ts,value:v,note});}
-      else if(ex.type==='lr'){const L=$('inpL')?.value,R=$('inpR')?.value;if(!L||!R)return alert('Bitte L und R eingeben');tr.records[key].push({ts,left:L,right:R,note});}
-      else{const v=$('inp')?.value;if(!v||v==='0')return alert('Bitte Zeit eingeben');tr.records[key].push({ts,value:v,note});}
+  $$('[data-ex]').forEach(el => {
+    el.onclick = () => {
+      const newExId = el.getAttribute('data-ex');
+      // Wenn zu einer anderen Übung gewechselt wird → Timer zurücksetzen
+      if (newExId !== state.exId) {
+        _timer.reset();
+        _timer.exKey = '';
+      }
+      state.exId = newExId;
       save(); render();
     };
+  });
+
+  if ($('saveRec') && ex) {
+    $('saveRec').onclick = () => {
+      const key  = `${ath.id}_${ex.id}`;
+      if (!tr.records[key]) tr.records[key] = [];
+      const note = $('note')?.value || '';
+      const ts   = new Date().toISOString();
+
+      if (ex.type === 'reps') {
+        const v = $('inp')?.value;
+        if (!v || v === '0') return alert('Bitte Anzahl eingeben');
+        tr.records[key].push({ ts, value: v, note });
+        save(); render();
+      } else if (ex.type === 'lr') {
+        const L = $('inpL')?.value, R = $('inpR')?.value;
+        if (!L || !R) return alert('Bitte L und R eingeben');
+        tr.records[key].push({ ts, left: L, right: R, note });
+        save(); render();
+      } else if (ex.type === 'time') {
+        // Timer stoppen beim Speichern
+        const ms = _timer.ms;
+        if (!ms || ms === 0) return alert('Bitte Timer starten');
+        _timer.stop();
+        _timer.savedMs = ms;
+        const v = (ms / 1000).toFixed(2);
+        tr.records[key].push({ ts, value: v, note });
+        save();
+        // Kein volles render() — nur Timer-Display und Einträge-Liste aktualisieren
+        _timer._update();
+        // Einträge-Bereich neu rendern ohne Timer zu resetten
+        render();
+      }
+    };
   }
-  if ($('timerStart')) {
-    let iv=null,ms=0;
-    $('timerStart').onclick=()=>{if(iv)return;const s=Date.now()-ms;iv=setInterval(()=>{ms=Date.now()-s;const sec=Math.floor(ms/1000),d=Math.floor((ms%1000)/100);$('timer').textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}.${d}`;$('inp').value=(ms/1000).toFixed(1);},100);};
-    $('timerStop').onclick=()=>{if(iv){clearInterval(iv);iv=null;}};
-    $('timerReset').onclick=()=>{if(iv){clearInterval(iv);iv=null;}ms=0;$('timer').textContent='00:00.0';$('inp').value='';};
+
+  // ── Timer: Ein-Button-Logik ──
+  if ($('timerToggle')) {
+    // Sicherstellen dass der Timer für diese Übung läuft
+    const curKey = `${ath.id}_${ex.id}`;
+    // Wenn wir die Übung gewechselt haben → Timer resetten
+    if (_timer.exKey && _timer.exKey !== curKey && !_timer.running) {
+      _timer.reset();
+    }
+    _timer.exKey = curKey;
+
+    $('timerToggle').onclick = () => {
+      if (_timer.running) {
+        _timer.stop();
+      } else {
+        _timer.start();
+      }
+    };
+
+    $('timerReset').onclick = () => {
+      if (_timer.running) return; // disabled während laufend
+      _timer.reset();
+    };
+
+    // Initial-State synchronisieren
+    _timer._update();
   }
   if ($('startRest')&&ex) {
     $('startRest').onclick=()=>{
