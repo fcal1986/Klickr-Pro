@@ -273,6 +273,22 @@
     .cal-event-main{font-size:16px;font-weight:900;margin-bottom:8px}
     .cal-add-btn{background:#1e293b;color:#fff;border-radius:999px;padding:10px;font-weight:900;font-size:12px;letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;border:none;width:100%;margin-top:8px;min-height:42px}
 
+    /* ── GRUPPEN ── */
+    .group-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 8px;border-radius:999px;font-size:12px;font-weight:800;cursor:pointer;border:2px solid transparent;transition:.15s;white-space:nowrap}
+    .group-chip.active{box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    .group-chip-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    .group-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;-webkit-overflow-scrolling:touch}
+    .group-bar::-webkit-scrollbar{height:3px}
+    .group-bar::-webkit-scrollbar-thumb{background:#3b82f6;border-radius:999px}
+    .group-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px}
+    .group-ath-check{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .group-ath-pill{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:#f0f4ff;border:2px solid #e5e7eb;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;user-select:none}
+    .group-ath-pill.checked{background:#3b82f6;border-color:#3b82f6;color:#fff}
+    .group-ath-pill img{width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0}
+    .group-option{background:#f0f4ff;border:2px solid #e5e7eb;border-radius:16px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .2s;display:flex;justify-content:space-between;align-items:center}
+    .group-option.selected{border-color:transparent;color:#fff}
+    .active-group-badge{color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;margin-left:6px;letter-spacing:.3px;flex-shrink:0}
+
   </style>
 </head>
 <body>
@@ -306,7 +322,9 @@
       <div class="modal-title">➕ Neues Training</div>
       <button class="modal-close" id="closeNewTraining">✕</button>
     </div>
-    <label>Template wählen</label>
+    <label>Gruppe wählen <span style="color:#9ca3af;font-weight:500;font-size:12px">(optional)</span></label>
+    <div id="groupOptions" style="margin-bottom:4px"></div>
+    <label style="margin-top:12px">Template wählen</label>
     <div id="templateOptions"></div>
     <label style="margin-top:16px">Datum</label>
     <input type="date" class="date-input" id="newTrainingDate"/>
@@ -362,6 +380,15 @@ const PHOTOS = [
   {id:'e4',label:'⚡ Sprint',url:'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400&h=300&fit=crop'}
 ];
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100';
+
+const GROUP_COLORS = [
+  { id:'blue',   hex:'#3b82f6', light:'#dbeafe' },
+  { id:'green',  hex:'#10b981', light:'#d1fae5' },
+  { id:'orange', hex:'#f97316', light:'#ffedd5' },
+  { id:'purple', hex:'#8b5cf6', light:'#ede9fe' },
+  { id:'red',    hex:'#ef4444', light:'#fee2e2' },
+  { id:'teal',   hex:'#14b8a6', light:'#ccfbf1' },
+];
 
 // ================================================================
 // IMAGE STORAGE – separate IndexedDB for blobs (no quota clash)
@@ -821,6 +848,60 @@ function showToast(msg, ms=2500) {
 }
 
 // ================================================================
+// GRUPPEN-VERWALTUNG
+// ================================================================
+
+function groupColor(colorId) {
+  return GROUP_COLORS.find(c => c.id === colorId) || GROUP_COLORS[0];
+}
+
+function createGroup(name, colorId = 'blue') {
+  const g = { id: 'grp_' + uid(), name, colorId, athleteIds: [] };
+  state.groups.push(g);
+  save();
+  return g;
+}
+
+function deleteGroup(groupId) {
+  state.groups = state.groups.filter(g => g.id !== groupId);
+  if (state.activeGroupId === groupId) state.activeGroupId = '';
+  save();
+}
+
+/** Setzt die aktive Gruppe → aktualisiert activeIds */
+function activateGroup(groupId) {
+  const g = state.groups.find(x => x.id === groupId);
+  if (!g) return;
+  state.activeGroupId = groupId;
+  // Nur Athleten aktivieren die in der Gruppe UND in state.athletes sind
+  const validIds = g.athleteIds.filter(id => state.athletes.find(a => a.id === id));
+  state.activeIds = validIds.length ? validIds : state.athletes.map(a => a.id);
+  state.athId = state.activeIds[0] || '';
+  save();
+}
+
+/** Setzt alle Athleten aktiv (kein Gruppen-Filter) */
+function activateAllAthletes() {
+  state.activeGroupId = '';
+  state.activeIds = state.athletes.map(a => a.id);
+  state.athId = state.activeIds[0] || '';
+  save();
+}
+
+/** Rendert die Gruppen-Leiste in der Athleten-Bar oben */
+function renderGroupBadge(athDiv) {
+  const g = state.groups.find(x => x.id === state.activeGroupId);
+  if (!g) return;
+  const col = groupColor(g.colorId);
+  const badge = document.createElement('div');
+  badge.style.cssText = `display:flex;align-items:center;gap:4px;padding:3px 10px 3px 6px;border-radius:999px;background:${col.hex};margin-right:2px;flex-shrink:0;cursor:pointer`;
+  badge.title = 'Gruppe: ' + g.name + ' — Klick für alle Athleten';
+  badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.6);flex-shrink:0"></span><span style="font-size:10px;font-weight:900;color:#fff;white-space:nowrap">${esc(g.name)}</span>`;
+  badge.onclick = () => { activateAllAthletes(); render(); };
+  athDiv.prepend(badge);
+}
+
+// ================================================================
 // v5.2 – LEADERBOARD (CoachOS exakt)
 // ================================================================
 function calcLeaderboard() {
@@ -1105,6 +1186,8 @@ function buildDefaultState() {
   const ath = {id:'ath_'+uid(), name:'Athlet 1', photo:'', photoId:''};
   return {
     athletes:[ath], activeIds:[ath.id],
+    groups: [],
+    activeGroupId: '',
     templates:[{
       id:'tpl_'+uid(), name:'Kickr Basics',
       exercises:[
@@ -1246,6 +1329,7 @@ function render() {
   const athDiv = $('athletes');
   if (state.tab==='tracking' || state.tab==='statistics' || state.tab==='duel') {
     athDiv.style.display = 'flex';
+    athDiv.style.alignItems = 'center';
     athDiv.innerHTML = state.activeIds.map(aid => {
       const a = state.athletes.find(x=>x.id===aid); if(!a) return '';
       const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
@@ -1254,6 +1338,8 @@ function render() {
         <div class="ath-name">${esc(a.name)}</div>
       </div>`;
     }).join('');
+    // Gruppen-Badge vor die Athleten-Chips setzen
+    renderGroupBadge(athDiv);
     // Lazy-load uncached athlete thumbs
     $$('[data-lazy-ath]').forEach(async img => {
       const a = state.athletes.find(x=>x.id===img.getAttribute('data-lazy-ath'));
@@ -1837,18 +1923,79 @@ let _athSort = 'az'; // 'az' | 'za'
 let _athExpanded = new Set(); // IDs of expanded athletes
 
 async function renderAthletes(host) {
-  // Player card grid (CoachOS-style) at top
+  // ── Player card grid ──
   const sorted = [...state.athletes].sort((a,b) =>
     _athSort === 'az' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
   );
-
   const cardGridHtml = await renderPlayerCardGrid(sorted, { showActive: true, selectedId: state.athId });
+
+  // ── Gruppen-Sektion HTML ──
+  let groupsHtml = '';
+  if (state.groups.length === 0) {
+    groupsHtml = `<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:13px">
+      Noch keine Gruppen. Tippe auf „Neue Gruppe" um loszulegen.
+    </div>`;
+  } else {
+    state.groups.forEach(g => {
+      const col  = groupColor(g.colorId);
+      const isActive = state.activeGroupId === g.id;
+      const members = g.athleteIds.map(id => state.athletes.find(a=>a.id===id)).filter(Boolean);
+
+      // Athleten-Pills mit Checkbox-Optik
+      const pills = state.athletes.map(a => {
+        const checked = g.athleteIds.includes(a.id);
+        const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
+        return `<div class="group-ath-pill ${checked?'checked':''}" data-grp-pill="${g.id}" data-pill-ath="${a.id}">
+          <img src="${src}" data-lazy-grp-pill="${a.id}"/>
+          ${esc(a.name)}
+        </div>`;
+      }).join('');
+
+      groupsHtml += `<div class="group-card" style="border-color:${isActive?col.hex:'#e5e7eb'}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <!-- Color picker dots -->
+          <div style="display:flex;gap:5px;flex-shrink:0">
+            ${GROUP_COLORS.map(c =>
+              `<div class="group-color-dot" data-grp-color="${g.id}" data-color="${c.id}"
+                style="width:16px;height:16px;border-radius:50%;background:${c.hex};cursor:pointer;
+                border:2px solid ${g.colorId===c.id?'#1e293b':'transparent'};transition:.15s;flex-shrink:0"></div>`
+            ).join('')}
+          </div>
+          <!-- Name input -->
+          <input value="${esc(g.name)}" data-grp-name="${g.id}"
+            style="flex:1;font-weight:800;font-size:15px;border:none;outline:none;background:transparent;min-width:0;padding:2px 0"/>
+          <!-- Aktiv-Toggle + Delete -->
+          <button class="small" data-grp-activate="${g.id}"
+            style="background:${isActive?col.hex:'#f1f5f9'};color:${isActive?'#fff':'#475569'};border:none;min-height:30px;padding:4px 10px;font-size:11px;font-weight:800">
+            ${isActive ? '✓ Aktiv' : 'Aktivieren'}
+          </button>
+          <button class="del-btn" data-grp-del="${g.id}" style="position:static;width:28px;height:28px;font-size:13px;flex-shrink:0">🗑</button>
+        </div>
+        <!-- Athleten-Zuweisung -->
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px">
+          ${members.length} Athlet${members.length!==1?'en':''} in dieser Gruppe
+        </div>
+        <div class="group-ath-check">${pills}</div>
+      </div>`;
+    });
+  }
 
   let html = `
   <div class="leaderboard-wrap">
     <div class="leaderboard-title" style="font-size:18px;margin-bottom:12px">Meine Athleten</div>
     ${cardGridHtml}
   </div>
+
+  <!-- ── GRUPPEN ── -->
+  <div class="card">
+    <div class="sec-head" style="margin-bottom:14px">
+      <span>🏷️ Gruppen</span>
+      <button class="small" id="addGroup">➕ Neue Gruppe</button>
+    </div>
+    <div id="groupsList">${groupsHtml}</div>
+  </div>
+
+  <!-- ── ATHLETEN-VERWALTUNG ── -->
   <div class="card">
     <h2>⚙️ Athleten-Verwaltung</h2>
     <button id="addAth" style="margin-top:12px">➕ Neuer Athlet</button>
@@ -1863,23 +2010,30 @@ async function renderAthletes(host) {
   </div>`;
 
   sorted.forEach(a => {
-    const active = state.activeIds.includes(a.id);
+    const active   = state.activeIds.includes(a.id);
     const avatarSrc = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
-    const expanded = _athExpanded.has(a.id);
+    const expanded  = _athExpanded.has(a.id);
+
+    // Welche Gruppen hat dieser Athlet?
+    const athGroups = state.groups.filter(g => g.athleteIds.includes(a.id));
+    const groupPills = athGroups.map(g => {
+      const col = groupColor(g.colorId);
+      return `<span style="background:${col.hex};color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px">${esc(g.name)}</span>`;
+    }).join('');
 
     html += `<div class="card" style="padding:0;overflow:hidden">
-      <!-- Header row – always visible -->
       <div data-ath-toggle="${a.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none">
         <img src="${avatarSrc}" data-lazy-ath-detail="${a.id}"
           style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid ${active?'#10b981':'#e5e7eb'};flex-shrink:0"/>
         <div style="flex:1;min-width:0">
           <div style="font-weight:900;font-size:15px">${esc(a.name)}</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px">${active?'✅ Aktiv':'⏸ Inaktiv'}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <span>${active?'✅ Aktiv':'⏸ Inaktiv'}</span>
+            ${groupPills}
+          </div>
         </div>
         <span style="font-size:18px;color:#9ca3af;transition:.2s;transform:${expanded?'rotate(180deg)':'rotate(0deg)'};display:block">▾</span>
       </div>
-
-      <!-- Collapsible body -->
       <div style="display:${expanded?'block':'none'};padding:0 16px 16px">
         <div class="ath-photo-wrap">
           <img src="${avatarSrc}" data-lazy-ath-detail2="${a.id}" alt="${esc(a.name)}"/>
@@ -1898,14 +2052,89 @@ async function renderAthletes(host) {
 
   host.innerHTML = html;
 
-  // Lazy-load athlete list photos
+  // ── Lazy-load Athleten-Bilder ──
   $$('[data-lazy-ath-detail],[data-lazy-ath-detail2]').forEach(async img => {
     const id = img.getAttribute('data-lazy-ath-detail') || img.getAttribute('data-lazy-ath-detail2');
-    const a = state.athletes.find(x=>x.id===id);
+    const a  = state.athletes.find(x=>x.id===id);
+    if (a?.photoId) { const src = await cachedThumb(a.photoId); if(src) img.src=src; }
+  });
+  $$('[data-lazy-grp-pill]').forEach(async img => {
+    const a = state.athletes.find(x=>x.id===img.getAttribute('data-lazy-grp-pill'));
     if (a?.photoId) { const src = await cachedThumb(a.photoId); if(src) img.src=src; }
   });
 
-  // Toggle individual collapse
+  // ── Gruppen Event-Handler ──
+
+  const addGroupBtn = $('addGroup');
+  if (addGroupBtn) addGroupBtn.onclick = () => {
+    const name = prompt('Gruppenname:', 'Gruppe ' + (state.groups.length + 1));
+    if (!name?.trim()) return;
+    // Nächste freie Farbe wählen
+    const usedColors = state.groups.map(g => g.colorId);
+    const freeColor  = GROUP_COLORS.find(c => !usedColors.includes(c.id))?.id || 'blue';
+    createGroup(name.trim(), freeColor);
+    renderAthletes(host);
+  };
+
+  // Gruppen-Name live ändern
+  $$('[data-grp-name]').forEach(inp => {
+    inp.oninput = () => {
+      const g = state.groups.find(x => x.id === inp.getAttribute('data-grp-name'));
+      if (g) { g.name = inp.value; save(); }
+    };
+  });
+
+  // Farbe wählen
+  $$('[data-grp-color]').forEach(dot => {
+    dot.onclick = () => {
+      const g = state.groups.find(x => x.id === dot.getAttribute('data-grp-color'));
+      if (!g) return;
+      g.colorId = dot.getAttribute('data-color');
+      save(); renderAthletes(host);
+    };
+  });
+
+  // Gruppe aktivieren
+  $$('[data-grp-activate]').forEach(btn => {
+    btn.onclick = () => {
+      const gid = btn.getAttribute('data-grp-activate');
+      if (state.activeGroupId === gid) {
+        activateAllAthletes();
+      } else {
+        activateGroup(gid);
+      }
+      renderAthletes(host);
+    };
+  });
+
+  // Gruppe löschen
+  $$('[data-grp-del]').forEach(btn => {
+    btn.onclick = () => {
+      const g = state.groups.find(x => x.id === btn.getAttribute('data-grp-del'));
+      if (!g || !confirm(`Gruppe "${g.name}" löschen?`)) return;
+      deleteGroup(g.id);
+      renderAthletes(host);
+    };
+  });
+
+  // Athlet zu Gruppe hinzufügen / entfernen (Pill-Toggle)
+  $$('[data-grp-pill]').forEach(pill => {
+    pill.onclick = () => {
+      const gid  = pill.getAttribute('data-grp-pill');
+      const aid  = pill.getAttribute('data-pill-ath');
+      const g    = state.groups.find(x => x.id === gid);
+      if (!g) return;
+      const idx = g.athleteIds.indexOf(aid);
+      if (idx >= 0) g.athleteIds.splice(idx, 1);
+      else          g.athleteIds.push(aid);
+      // Wenn diese Gruppe aktiv ist → activeIds sofort aktualisieren
+      if (state.activeGroupId === gid) activateGroup(gid);
+      else save();
+      renderAthletes(host);
+    };
+  });
+
+  // ── Athleten-Verwaltung Event-Handler (unverändert) ──
   $$('[data-ath-toggle]').forEach(row => {
     row.onclick = () => {
       const id = row.getAttribute('data-ath-toggle');
@@ -1913,44 +2142,43 @@ async function renderAthletes(host) {
       renderAthletes(host);
     };
   });
-
-  // Expand/collapse all
-  $('athExpandAll').onclick = () => {
-    state.athletes.forEach(a => _athExpanded.add(a.id));
-    renderAthletes(host);
-  };
-  $('athCollapseAll').onclick = () => {
-    _athExpanded.clear();
-    renderAthletes(host);
-  };
-
-  // Sort buttons
+  $('athExpandAll').onclick  = () => { state.athletes.forEach(a => _athExpanded.add(a.id)); renderAthletes(host); };
+  $('athCollapseAll').onclick = () => { _athExpanded.clear(); renderAthletes(host); };
   $('athSortAZ').onclick = () => { _athSort = 'az'; renderAthletes(host); };
   $('athSortZA').onclick = () => { _athSort = 'za'; renderAthletes(host); };
 
-  // Photo upload
   $$('[data-photo-upload]').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); triggerAthPhotoUpload(btn.getAttribute('data-photo-upload')); };
   });
 
   $('addAth')?.addEventListener('click', () => {
-    const name = prompt('Name:', 'Athlet ' + (state.athletes.length+1)); if (!name) return;
-    const a = {id:'ath_'+uid(), name, photo:'', photoId:''};
+    const name = prompt('Name:', 'Athlet ' + (state.athletes.length + 1)); if (!name) return;
+    const a = { id: 'ath_'+uid(), name, photo: '', photoId: '' };
     state.athletes.push(a); state.activeIds.push(a.id);
-    _athExpanded.add(a.id); // auto-expand new athlete
+    _athExpanded.add(a.id);
     save(); renderAthletes(host);
   });
-  $$('[data-athName]').forEach(inp => { inp.oninput=()=>{ const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athName')); if(a){a.name=inp.value;save();} }; });
-  $$('[data-athPhoto]').forEach(inp => { inp.oninput=()=>{ const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athPhoto')); if(a){a.photo=inp.value;save();} }; });
-  $$('[data-toggle]').forEach(btn => { btn.onclick=()=>{ const id=btn.getAttribute('data-toggle'); const i=state.activeIds.indexOf(id); if(i>=0)state.activeIds.splice(i,1); else state.activeIds.push(id); save(); renderAthletes(host); }; });
+
+  $$('[data-athName]').forEach(inp  => { inp.oninput = () => { const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athName'));  if(a){a.name=inp.value;save();} }; });
+  $$('[data-athPhoto]').forEach(inp => { inp.oninput = () => { const a=state.athletes.find(x=>x.id===inp.getAttribute('data-athPhoto')); if(a){a.photo=inp.value;save();} }; });
+  $$('[data-toggle]').forEach(btn   => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-toggle');
+      const i  = state.activeIds.indexOf(id);
+      if (i >= 0) state.activeIds.splice(i, 1); else state.activeIds.push(id);
+      save(); renderAthletes(host);
+    };
+  });
   $$('[data-delAth]').forEach(btn => {
     btn.onclick = () => {
       if (!confirm('Athlet löschen?')) return;
       const id = btn.getAttribute('data-delAth');
-      const a = state.athletes.find(x=>x.id===id);
+      const a  = state.athletes.find(x=>x.id===id);
       if (a?.photoId) { imgDelete('thumbs',a.photoId); imgDelete('full',a.photoId); _imgCache.delete(a.photoId); }
-      state.athletes = state.athletes.filter(x=>x.id!==id);
+      state.athletes  = state.athletes.filter(x=>x.id!==id);
       state.activeIds = state.activeIds.filter(x=>x!==id);
+      // Athlet aus allen Gruppen entfernen
+      state.groups.forEach(g => { g.athleteIds = g.athleteIds.filter(x=>x!==id); });
       _athExpanded.delete(id);
       if (state.athId===id) state.athId = state.activeIds[0]||'';
       save(); renderAthletes(host);
@@ -2445,21 +2673,87 @@ function createTraining(tplId) {
   save();return tr;
 }
 
-let selectedTemplateId='';
+let selectedTemplateId = '';
+let selectedGroupId    = '';   // '' = alle Athleten
+
 function openNewTrainingModal() {
-  const options=$('templateOptions');const dateInput=$('newTrainingDate');
-  dateInput.value=today();
-  options.innerHTML=state.templates.map(tpl=>`
+  const options   = $('templateOptions');
+  const grpOptions = $('groupOptions');
+  const dateInput = $('newTrainingDate');
+  dateInput.value = today();
+
+  // ── Gruppen-Optionen ──
+  selectedGroupId = state.activeGroupId || '';
+  if (state.groups.length === 0) {
+    grpOptions.innerHTML = `<div style="font-size:13px;color:#9ca3af;padding:4px 0 8px">Noch keine Gruppen angelegt — im Athleten-Tab erstellen.</div>`;
+  } else {
+    grpOptions.innerHTML = [
+      // "Alle" Option
+      `<div class="group-option ${selectedGroupId===''?'selected':''}" data-grp=""
+        style="${selectedGroupId===''?'background:#1e293b;border-color:#1e293b':''}">
+        <div>
+          <div style="font-weight:800;font-size:14px">Alle Athleten</div>
+          <div style="font-size:12px;opacity:.75">${state.athletes.length} Athleten</div>
+        </div>
+        <span style="font-size:20px">👥</span>
+      </div>`,
+      ...state.groups.map(g => {
+        const col = groupColor(g.colorId);
+        const cnt = g.athleteIds.filter(id => state.athletes.find(a=>a.id===id)).length;
+        const sel = selectedGroupId === g.id;
+        return `<div class="group-option ${sel?'selected':''}" data-grp="${g.id}"
+          style="${sel?`background:${col.hex};border-color:${col.hex}`:''}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:14px;height:14px;border-radius:50%;background:${col.hex};flex-shrink:0;${sel?'background:rgba(255,255,255,.5)':''}"></div>
+            <div>
+              <div style="font-weight:800;font-size:14px">${esc(g.name)}</div>
+              <div style="font-size:12px;opacity:.7">${cnt} Athlet${cnt!==1?'en':''}</div>
+            </div>
+          </div>
+          <span style="font-size:18px">▶</span>
+        </div>`;
+      })
+    ].join('');
+
+    $$('.group-option').forEach(opt => {
+      opt.onclick = () => {
+        selectedGroupId = opt.getAttribute('data-grp');
+        // Visuelles Update ohne render()
+        $$('.group-option').forEach(o => {
+          const gid = o.getAttribute('data-grp');
+          const col = gid ? groupColor(state.groups.find(g=>g.id===gid)?.colorId) : null;
+          const active = gid === selectedGroupId;
+          o.classList.toggle('selected', active);
+          if (gid === '') {
+            o.style.cssText = active ? 'background:#1e293b;border-color:#1e293b;color:#fff' : '';
+          } else {
+            o.style.cssText = active ? `background:${col.hex};border-color:${col.hex};color:#fff` : '';
+          }
+        });
+      };
+    });
+  }
+
+  // ── Template-Optionen ──
+  options.innerHTML = state.templates.map(tpl => `
     <div class="tpl-option" data-tpl="${tpl.id}">
       <div><div class="tpl-name">${esc(tpl.name)}</div><div class="tpl-info">${tpl.exercises?.length||0} Übungen</div></div>
       <div style="font-size:24px">📋</div>
     </div>`).join('');
-  selectedTemplateId=state.templates[0]?.id||'';
-  $$('.tpl-option').forEach(opt=>{opt.onclick=()=>{$$('.tpl-option').forEach(o=>o.classList.remove('selected'));opt.classList.add('selected');selectedTemplateId=opt.getAttribute('data-tpl');};});
+
+  selectedTemplateId = state.templates[0]?.id || '';
+  $$('.tpl-option').forEach(opt => {
+    opt.onclick = () => {
+      $$('.tpl-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      selectedTemplateId = opt.getAttribute('data-tpl');
+    };
+  });
   options.querySelector('.tpl-option')?.classList.add('selected');
+
   $('newTrainingModal').classList.add('show');
 }
-function closeNewTrainingModal(){$('newTrainingModal').classList.remove('show');selectedTemplateId='';}
+function closeNewTrainingModal(){$('newTrainingModal').classList.remove('show');selectedTemplateId='';selectedGroupId='';}
 function openEditDateModal(tid){
   const tr=state.trainings.find(t=>t.id===tid);if(!tr)return;
   $('editDateTrainingName').textContent=tr.tplName;$('editDateInput').value=tr.date||today();
@@ -2469,14 +2763,40 @@ function closeEditDateModal(){$('editDateModal').classList.remove('show');}
 
 $('closeNewTraining').onclick=closeNewTrainingModal;
 $('newTrainingModal').onclick=e=>{if(e.target.id==='newTrainingModal')closeNewTrainingModal();};
-$('confirmNewTraining').onclick=()=>{
-  if(!selectedTemplateId)return alert('Bitte Template wählen');
-  const date=$('newTrainingDate').value;if(!date)return alert('Bitte Datum wählen');
-  const tpl=state.templates.find(t=>t.id===selectedTemplateId);
-  if(!tpl?.exercises?.length)return alert('❌ Template hat keine Übungen!');
-  const tr={id:'tr_'+uid(),tplId:selectedTemplateId,tplName:tpl.name,date,exercises:JSON.parse(JSON.stringify(tpl.exercises)),records:{}};
-  state.trainings.unshift(tr);state.trainId=tr.id;state.exId=tr.exercises[0]?.id||'';
-  save();closeNewTrainingModal();render();
+$('confirmNewTraining').onclick = () => {
+  if (!selectedTemplateId) return alert('Bitte Template wählen');
+  const date = $('newTrainingDate').value;
+  if (!date) return alert('Bitte Datum wählen');
+  const tpl = state.templates.find(t => t.id === selectedTemplateId);
+  if (!tpl?.exercises?.length) return alert('❌ Template hat keine Übungen!');
+
+  // Gruppe anwenden → activeIds setzen
+  if (selectedGroupId) {
+    const g = state.groups.find(x => x.id === selectedGroupId);
+    if (g) {
+      const validIds = g.athleteIds.filter(id => state.athletes.find(a => a.id === id));
+      if (validIds.length) {
+        state.activeGroupId = selectedGroupId;
+        state.activeIds     = validIds;
+        state.athId         = validIds[0];
+      }
+    }
+  } else {
+    // "Alle Athleten" gewählt → Gruppen-Filter aufheben
+    state.activeGroupId = '';
+    state.activeIds     = state.athletes.map(a => a.id);
+    state.athId         = state.athletes[0]?.id || '';
+  }
+
+  const tr = {
+    id: 'tr_'+uid(), tplId: selectedTemplateId, tplName: tpl.name,
+    date, exercises: JSON.parse(JSON.stringify(tpl.exercises)), records: {},
+    groupId: selectedGroupId || null,   // für spätere Referenz gespeichert
+  };
+  state.trainings.unshift(tr);
+  state.trainId = tr.id;
+  state.exId    = tr.exercises[0]?.id || '';
+  save(); closeNewTrainingModal(); render();
 };
 $('closeEditDate').onclick=closeEditDateModal;
 $('editDateModal').onclick=e=>{if(e.target.id==='editDateModal')closeEditDateModal();};
@@ -2499,6 +2819,8 @@ $('confirmEditDate').onclick=()=>{
   // Ensure required fields
   state.athletes  = state.athletes  || defaults.athletes;
   state.activeIds = state.activeIds || defaults.activeIds;
+  state.groups    = state.groups    || [];
+  state.activeGroupId = state.activeGroupId || '';
   state.templates = state.templates || defaults.templates;
   state.trainings = state.trainings || [];
   state.tab       = state.tab       || 'tracking';
