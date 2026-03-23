@@ -18,14 +18,20 @@
     header{position:fixed;top:0;left:0;right:0;background:#fff;border-bottom:2px solid #e5e7eb;z-index:100;padding:10px 16px}
     h1{font-size:17px;font-weight:900}
     .sub{font-size:11px;color:#6b7280;margin-top:2px}
-    .athletes{position:fixed;top:54px;left:0;right:0;display:flex;gap:10px;overflow-x:auto;padding:8px 12px;background:#fff;border-bottom:2px solid #e5e7eb;z-index:100;-webkit-overflow-scrolling:touch}
-    .athletes::-webkit-scrollbar{height:3px}
-    .athletes::-webkit-scrollbar-thumb{background:#3b82f6;border-radius:999px}
+    .athletes{position:fixed;top:54px;left:0;right:0;background:#fff;border-bottom:2px solid #e5e7eb;z-index:100}
+    /* Gruppen-Zeile oben */
+    .athletes-group-row{display:flex;align-items:center;gap:8px;padding:5px 12px 4px;border-bottom:1px solid #f1f5f9;min-height:26px}
+    .athletes-group-label{font-size:11px;font-weight:800;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+    .athletes-group-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    /* Avatar-Zeile unten */
+    .athletes-avatar-row{display:flex;gap:10px;overflow-x:auto;padding:6px 12px 7px;-webkit-overflow-scrolling:touch}
+    .athletes-avatar-row::-webkit-scrollbar{height:3px}
+    .athletes-avatar-row::-webkit-scrollbar-thumb{background:#3b82f6;border-radius:999px}
     .ath{text-align:center;flex:0 0 auto;cursor:pointer;min-width:60px}
     .ath img{width:48px;height:48px;border-radius:50%;border:3px solid #e5e7eb;margin-bottom:4px;object-fit:cover;display:block;margin-left:auto;margin-right:auto}
     .ath.active img{border-color:#10b981}
     .ath-name{font-size:10px;font-weight:700;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    main{max-width:1100px;margin:0 auto;padding:16px;padding-top:120px;padding-bottom:100px}
+    main{max-width:1100px;margin:0 auto;padding:16px;padding-top:138px;padding-bottom:100px}
     .card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px}
     button{background:#3b82f6;color:#fff;border:none;padding:12px 20px;border-radius:12px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;transition:transform .2s;min-height:48px;font-size:15px}
     button:active{transform:scale(.97)}
@@ -37,8 +43,12 @@
     .scroll-row::-webkit-scrollbar{height:6px}
     .scroll-row::-webkit-scrollbar-thumb{background:#3b82f6;border-radius:999px}
     .tr-card{flex:0 0 auto;width:200px;border:3px solid #e5e7eb;border-radius:16px;overflow:hidden;cursor:pointer;position:relative;transition:all .2s}
-    .tr-card.active{border-color:#3b82f6;box-shadow:0 6px 20px rgba(59,130,246,.3)}
+    .tr-card.active{border-color:#1e293b;box-shadow:0 6px 24px rgba(30,41,59,.35)}
+    .tr-card.active::after{content:'✓';position:absolute;top:8px;left:50%;transform:translateX(-50%);
+      background:#1e293b;color:#fff;font-size:11px;font-weight:900;
+      padding:2px 10px;border-radius:999px;letter-spacing:.5px;z-index:5}
     .tr-card img{width:100%;height:100px;object-fit:cover;background:#f0f4ff}
+    .tr-card.active img{filter:brightness(.75)}
     .tr-info{padding:10px 12px 6px}
     .tr-title{font-weight:900;font-size:14px;margin-bottom:4px}
     .tr-date{font-size:12px;color:#6b7280}
@@ -322,7 +332,7 @@
       <h1 id="title">⚡ Kickr Training PRO</h1>
       <div class="sub" id="subtitle">Lade...</div>
     </div>
-    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.4</span>
+    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.6</span>
   </div>
 </header>
 
@@ -334,6 +344,18 @@
     <div class="ath-popup-title" id="athPopupTitle"></div>
     <div class="ath-popup-sub" id="athPopupSub"></div>
     <div id="athPopupBody"></div>
+  </div>
+</div>
+
+<!-- ── Modal: Athlet zur Gruppe hinzufügen ── -->
+<div class="modal" id="addAthModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">➕ Athlet hinzufügen</div>
+      <button class="modal-close" id="closeAddAthModal">✕</button>
+    </div>
+    <div id="addAthOptions"></div>
+    <button id="confirmAddAth" style="margin-top:16px">Hinzufügen</button>
   </div>
 </div>
 
@@ -424,7 +446,7 @@ const GROUP_COLORS = [
   { id:'teal',   hex:'#14b8a6', light:'#ccfbf1' },
 ];
 
-const APP_VERSION = '5.4';
+const APP_VERSION = '5.6';
 
 // ================================================================
 // IMAGE STORAGE – separate IndexedDB for blobs (no quota clash)
@@ -1382,6 +1404,99 @@ async function deleteExPhoto(tplId, exId, imgId) {
 }
 
 // ================================================================
+// ATHLETEN ZUR BAR HINZUFÜGEN (Modal)
+// ================================================================
+let _addAthSelected = null; // 'new' | athId
+
+function openAddAthModal() {
+  const curTr    = state.trainings.find(t => t.id === state.trainId);
+  const curGroup = curTr?.groupId ? state.groups.find(g => g.id === curTr.groupId) : null;
+
+  // Athleten die noch NICHT in der aktiven Bar sind
+  const missing = state.athletes.filter(a => !state.activeIds.includes(a.id));
+  _addAthSelected = null;
+
+  const optionsDiv = $('addAthOptions');
+  optionsDiv.innerHTML = `
+    <!-- Option A: Bestehenden Athleten hinzufügen -->
+    ${missing.length > 0 ? `
+      <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+        Bestehenden Athleten hinzufügen
+      </div>
+      ${missing.map(a => {
+        const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
+        return `<div class="tpl-option" data-add-existing="${a.id}" style="gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <img src="${src}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0"/>
+            <span style="font-weight:800">${esc(a.name)}</span>
+          </div>
+          <span style="font-size:18px">👤</span>
+        </div>`;
+      }).join('')}
+      <div style="height:1px;background:#e5e7eb;margin:14px 0"></div>
+    ` : `<div style="font-size:13px;color:#94a3b8;margin-bottom:12px">Alle Athleten sind bereits in der Liste.</div>`}
+    <!-- Option B: Neuen Athleten erstellen -->
+    <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+      Neuen Athleten erstellen
+    </div>
+    <div class="tpl-option" data-add-new="1">
+      <div><div class="tpl-name">Neuer Athlet</div><div class="tpl-info">Namen eingeben</div></div>
+      <span style="font-size:24px">➕</span>
+    </div>
+  `;
+
+  // Auswahl-Logik
+  optionsDiv.querySelectorAll('[data-add-existing],[data-add-new]').forEach(opt => {
+    opt.onclick = () => {
+      optionsDiv.querySelectorAll('.tpl-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      _addAthSelected = opt.dataset.addExisting || 'new';
+    };
+  });
+
+  $('addAthModal').classList.add('show');
+}
+
+function closeAddAthModal() {
+  $('addAthModal').classList.remove('show');
+  _addAthSelected = null;
+}
+
+// Modal-Buttons binden (einmalig nach DOM-Ready)
+function bindAddAthModal() {
+  $('closeAddAthModal').onclick = closeAddAthModal;
+  $('addAthModal').onclick = e => { if (e.target.id === 'addAthModal') closeAddAthModal(); };
+
+  $('confirmAddAth').onclick = () => {
+    if (!_addAthSelected) return alert('Bitte eine Option wählen.');
+
+    const curTr    = state.trainings.find(t => t.id === state.trainId);
+    const curGroup = curTr?.groupId ? state.groups.find(g => g.id === curTr.groupId) : null;
+
+    if (_addAthSelected === 'new') {
+      const name = prompt('Name des neuen Athleten:'); if (!name?.trim()) return;
+      const a = { id: 'ath_'+uid(), name: name.trim(), photo: '', photoId: '' };
+      state.athletes.push(a);
+      state.activeIds.push(a.id);
+      // Auch zur aktuellen Gruppe hinzufügen wenn vorhanden
+      if (curGroup) curGroup.athleteIds.push(a.id);
+      save(); closeAddAthModal(); render();
+      showToast('✅ ' + a.name + ' angelegt und hinzugefügt');
+    } else {
+      // Bestehenden hinzufügen
+      const a = state.athletes.find(x => x.id === _addAthSelected);
+      if (!a) return;
+      if (!state.activeIds.includes(a.id)) state.activeIds.push(a.id);
+      // Auch zur aktuellen Gruppe hinzufügen
+      if (curGroup && !curGroup.athleteIds.includes(a.id)) curGroup.athleteIds.push(a.id);
+      state.athId = a.id;
+      save(); closeAddAthModal(); render();
+      showToast('✅ ' + a.name + ' hinzugefügt');
+    }
+  };
+}
+
+// ================================================================
 // ATHLETEN-EINTRÄGE-POPUP (Long-Press)
 // ================================================================
 function openAthPopup(athId) {
@@ -1447,9 +1562,27 @@ function render() {
 
   const athDiv = $('athletes');
   if (state.tab==='tracking' || state.tab==='statistics' || state.tab==='duel') {
-    athDiv.style.display = 'flex';
-    athDiv.style.alignItems = 'center';
-    athDiv.innerHTML = state.activeIds.map(aid => {
+    athDiv.style.display = 'block';
+
+    // Gruppe vom aktuellen Training lesen (nicht aus activeGroupId)
+    const curTr = state.trainings.find(t => t.id === state.trainId);
+    const curGroup = curTr?.groupId ? state.groups.find(g => g.id === curTr.groupId) : null;
+    const curCol = curGroup ? groupColor(curGroup.colorId) : null;
+
+    // Gruppen-Label-Zeile (nur wenn Gruppen vorhanden)
+    const groupRowHtml = state.groups.length > 0 ? `
+      <div class="athletes-group-row">
+        ${curGroup
+          ? `<div class="athletes-group-dot" style="background:${curCol.hex}"></div>
+             <span class="athletes-group-label" style="color:${curCol.hex}">${esc(curGroup.name)}</span>
+             <span style="font-size:10px;color:#94a3b8;margin-left:auto;flex-shrink:0">${state.activeIds.length} Athleten</span>`
+          : `<span class="athletes-group-label" style="color:#94a3b8">Alle Athleten</span>
+             <span style="font-size:10px;color:#94a3b8;margin-left:auto;flex-shrink:0">${state.activeIds.length} Athleten</span>`
+        }
+      </div>` : '';
+
+    // Avatar-Zeile
+    const avatarsHtml = state.activeIds.map(aid => {
       const a = state.athletes.find(x=>x.id===aid); if(!a) return '';
       const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
       return `<div class="ath ${a.id===state.athId?'active':''}" data-ath="${a.id}" draggable="true" data-ath-drag="${a.id}" style="cursor:grab">
@@ -1457,16 +1590,14 @@ function render() {
         <div class="ath-name">${esc(a.name)}</div>
       </div>`;
     }).join('') +
-    // + Athlet hinzufügen Slot am Ende
-    `<div class="ath-add-slot" id="athAddSlot" title="Neuen Athleten anlegen">
+    `<div class="ath-add-slot" id="athAddSlot" title="Athlet hinzufügen">
       <div class="ath-add-slot-circle">+</div>
       <div class="ath-add-slot-label">Neu</div>
     </div>`;
 
-    // Gruppen-Badge vor die Athleten-Chips setzen
-    renderGroupBadge(athDiv);
+    athDiv.innerHTML = groupRowHtml + `<div class="athletes-avatar-row">${avatarsHtml}</div>`;
 
-    // Lazy-load uncached athlete thumbs
+    // Lazy-load
     $$('[data-lazy-ath]').forEach(async img => {
       const a = state.athletes.find(x=>x.id===img.getAttribute('data-lazy-ath'));
       if (a?.photoId && !_imgCache.has(a.photoId)) {
@@ -1478,32 +1609,19 @@ function render() {
     $$('[data-ath]').forEach(el => {
       let pressTimer = null;
       const aid = el.getAttribute('data-ath');
-
       el.addEventListener('pointerdown', () => {
-        pressTimer = setTimeout(() => {
-          pressTimer = null;
-          openAthPopup(aid);
-        }, 500);
+        pressTimer = setTimeout(() => { pressTimer = null; openAthPopup(aid); }, 500);
       });
       el.addEventListener('pointerup',    () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
       el.addEventListener('pointerleave', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
-      el.onclick = () => {
-        if (!pressTimer && pressTimer !== null) return; // Long-press hat getriggert
-        state.athId = aid; save(); render();
-      };
+      el.onclick = () => { state.athId = aid; save(); render(); };
     });
 
-    // + Slot: direkt neuen Athleten anlegen
+    // + Slot: Modal öffnen (neuer Athlet ODER bestehender aus Nicht-Gruppe)
     const addSlot = $('athAddSlot');
-    if (addSlot) addSlot.onclick = () => {
-      const name = prompt('Name des neuen Athleten:'); if (!name?.trim()) return;
-      const a = { id: 'ath_'+uid(), name: name.trim(), photo: '', photoId: '' };
-      state.athletes.push(a); state.activeIds.push(a.id);
-      save(); render();
-      showToast('✅ ' + a.name + ' hinzugefügt');
-    };
+    if (addSlot) addSlot.onclick = () => openAddAthModal();
 
-    // Drag-to-reorder athletes bar
+    // Drag-to-reorder
     let _athDragSrc = null;
     $$('[data-ath-drag]').forEach(el => {
       el.addEventListener('dragstart', e => { _athDragSrc = el; e.dataTransfer.effectAllowed='move'; });
@@ -3141,8 +3259,11 @@ $('confirmEditDate').onclick=()=>{
   // Init calendar to today
   _calDate = new Date(); _calSelectedDate = today();
 
+  // Athleten-Modal binden
+  bindAddAthModal();
+
   render();
-  console.log(`✅ Kickr PRO v${APP_VERSION} – Gruppen: klappbar, alphabetisch, Badge fix, Export+Import mit Gruppen`);
+  console.log(`✅ Kickr PRO v${APP_VERSION} – Athleten-Bar zweizeilig, aktive Karte, AddAth-Modal, kein Badge-Klick`);
 })();
 </script>
 </body>
