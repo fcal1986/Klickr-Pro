@@ -352,7 +352,7 @@
       <h1 id="title">⚡ Kickr Training PRO</h1>
       <div class="sub" id="subtitle">Lade...</div>
     </div>
-    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.8</span>
+    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.9</span>
   </div>
 </header>
 
@@ -466,7 +466,46 @@ const GROUP_COLORS = [
   { id:'teal',   hex:'#14b8a6', light:'#ccfbf1' },
 ];
 
-const APP_VERSION = '5.8';
+const APP_VERSION = '5.9';
+
+/**
+ * Gibt den "besten" Wert zurück abhängig von timeDir.
+ * timeDir: 'asc' = kleinster Wert ist besser (Sprint)
+ *          'desc' = größter Wert ist besser (Ausdauer, Reps) — default
+ */
+function bestVal(values, timeDir) {
+  if (!values.length) return null;
+  return timeDir === 'asc' ? Math.min(...values) : Math.max(...values);
+}
+
+/** Sortiert Werte nach Güte: bester zuerst */
+function sortByBest(rows, timeDir) {
+  return [...rows].sort((a, b) =>
+    timeDir === 'asc' ? a.best - b.best : b.best - a.best
+  );
+}
+
+/** Liefert den timeDir eines Exercises aus dem aktuellen Template-/Training-Kontext */
+function getTimeDir(ex) {
+  return ex?.timeDir || 'desc';
+}
+
+/**
+ * Sucht timeDir anhand des Übungstitels über alle Templates.
+ * Fallback: 'desc' (größer = besser). Wird für Statistiken genutzt.
+ */
+function getTimeDirByTitle(exTitle) {
+  for (const tpl of state.templates) {
+    const ex = tpl.exercises?.find(e => e.title === exTitle && e.type === 'time');
+    if (ex?.timeDir) return ex.timeDir;
+  }
+  // Auch in Training-Snapshots suchen
+  for (const tr of state.trainings) {
+    const ex = tr.exercises?.find(e => e.title === exTitle && e.type === 'time');
+    if (ex?.timeDir) return ex.timeDir;
+  }
+  return 'desc';
+}
 
 // ================================================================
 // IMAGE STORAGE – separate IndexedDB for blobs (no quota clash)
@@ -2090,16 +2129,33 @@ async function renderStats(host) {
   Object.entries(data.exercises).forEach(([exTitle,stats])=>{
     stats.records.sort((a,b)=>a.date-b.date);
     const vals=stats.records.map(r=>r.value);
-    const best=Math.max(...vals).toFixed(1),avg=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
-    const bestRec=stats.records.find(r=>r.value===Math.max(...vals));
-    let imp='-';if(vals.length>=2){const p=((vals[vals.length-1]-vals[0])/vals[0]*100);imp=p>=0?`+${p.toFixed(0)}%`:`${p.toFixed(0)}%`;}
+    const timeDir = stats.type==='time' ? getTimeDirByTitle(exTitle) : 'desc';
+    const bestV   = bestVal(vals, timeDir);
+    const best    = bestV?.toFixed(1) ?? '-';
+    const avg     = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '-';
+    const bestRec = stats.records.find(r=>r.value===bestV);
+    let imp='-';
+    if(vals.length>=2){
+      // Trend: positiv = Verbesserung (bei asc: Wert sinkt = gut, bei desc: Wert steigt = gut)
+      const delta = vals[vals.length-1] - vals[0];
+      const pct   = Math.abs(delta/vals[0]*100).toFixed(0);
+      const improved = timeDir==='asc' ? delta < 0 : delta > 0;
+      imp = improved ? `+${pct}%` : `-${pct}%`;
+    }
     const bench=[];
     state.athletes.forEach(a=>{
       const av=[];
       state.trainings.forEach(tr=>{tr.exercises?.forEach(ex=>{if(ex?.title!==exTitle)return;const k=`${a.id}_${ex.id}`;(tr.records?.[k]||[]).forEach(r=>{let v=0;if(stats.type==='reps')v=parseFloat(r.value)||0;else if(stats.type==='lr')v=(parseFloat(r.left)||0)+(parseFloat(r.right)||0);else v=parseFloat(r.value)||0;if(v>0)av.push(v);});});});
-      if(av.length)bench.push({id:a.id,name:a.name,photoId:a.photoId,photo:a.photo,best:Math.max(...av).toFixed(1),avg:(av.reduce((a,b)=>a+b,0)/av.length).toFixed(1)});
-    });bench.sort((a,b)=>parseFloat(b.best)-parseFloat(a.best));
-    html+=`<div class="card"><h3>💪 ${esc(exTitle)}</h3><p style="color:#6b7280;margin:8px 0">${stats.records.length} Einträge</p>
+      if(av.length){
+        const bv=bestVal(av,timeDir);
+        bench.push({id:a.id,name:a.name,photoId:a.photoId,photo:a.photo,best:bv?.toFixed(1)??'-',bestNum:bv??0,avg:(av.reduce((a,b)=>a+b,0)/av.length).toFixed(1)});
+      }
+    });
+    // Sortierung: bei asc (Sprint) kleinster Wert zuerst
+    bench.sort((a,b) => timeDir==='asc' ? a.bestNum - b.bestNum : b.bestNum - a.bestNum);
+
+    const dirLabel = stats.type==='time' ? (timeDir==='asc' ? ' 🏃 kürzer=besser' : ' 🏅 länger=besser') : '';
+    html+=`<div class="card"><h3>💪 ${esc(exTitle)}<span style="font-size:11px;color:#94a3b8;font-weight:600">${dirLabel}</span></h3><p style="color:#6b7280;margin:8px 0">${stats.records.length} Einträge</p>
       <canvas id="chart_${stats.chartId}" style="max-height:250px;margin:16px 0"></canvas>
       <div class="stat-grid">
         <div class="stat-box"><div class="stat-val">${best}</div><div class="stat-lbl">Best</div></div>
@@ -2302,34 +2358,46 @@ async function renderGroupStats(host, cutoff) {
 
   exTitles.forEach(exTitle => {
     const ex = exStats[exTitle];
-    // Alle Athleten mit Werten — sortiert nach Best-Wert
+    const timeDir = ex.type==='time' ? getTimeDirByTitle(exTitle) : 'desc';
+
+    // Alle Athleten mit Werten — sortiert nach timeDir
     const athRows = Object.values(ex.athletes).map(({ ath, vals }) => ({
       ath,
-      best: Math.max(...vals),
+      best: bestVal(vals, timeDir),
       avg:  Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10,
       count: vals.length,
-    })).sort((a,b) => b.best - a.best);
+    }));
+    const sorted = sortByBest(athRows, timeDir);
 
-    if (!athRows.length) return;
-    const maxVal = athRows[0].best;
+    if (!sorted.length) return;
+    const maxVal = sorted[0].best; // nach Sortierung ist Bester vorne
+
+    const dirLabel = ex.type==='time'
+      ? `<span style="font-size:10px;color:#94a3b8;margin-left:6px;font-weight:600">${timeDir==='asc'?'🏃 kürzer=besser':'🏅 länger=besser'}</span>`
+      : '';
 
     exHtml += `<div class="grpstat-ex-card">
       <div class="grpstat-ex-title">
-        <span>💪</span> ${esc(exTitle)}
-        <span style="margin-left:auto;font-size:12px;font-weight:600;color:#94a3b8">${athRows.length} Athleten</span>
+        <span>💪</span> ${esc(exTitle)} ${dirLabel}
+        <span style="margin-left:auto;font-size:12px;font-weight:600;color:#94a3b8">${sorted.length} Athleten</span>
       </div>
-      ${athRows.map((row, idx) => {
+      ${sorted.map((row, idx) => {
         const thumb = _imgCache.get(row.ath.photoId) || row.ath.photo || DEFAULT_AVATAR;
-        const pct   = maxVal > 0 ? Math.round((row.best / maxVal) * 100) : 0;
+        // Balken: bei asc → Bester hat kleinsten Wert; Balken relativ zum schlechtesten
+        const worstVal = sorted[sorted.length-1].best;
+        const range    = Math.abs(worstVal - maxVal) || 1;
+        const pct = timeDir==='asc'
+          ? Math.round(((worstVal - row.best) / range) * 100)  // kleinster = voller Balken
+          : Math.round((row.best / (maxVal || 1)) * 100);
         const isTop = idx === 0;
         return `<div class="grpstat-ath-row">
           <div class="grpstat-rank">${idx+1}</div>
           <img class="grpstat-ath-ava" src="${thumb}" data-lazy-grpex="${row.ath.photoId||''}"/>
           <div class="grpstat-ath-name">${esc(row.ath.name)}</div>
           <div class="grpstat-bar-wrap">
-            <div class="grpstat-bar-fill ${isTop?'rank1':''}" style="width:${pct}%"></div>
+            <div class="grpstat-bar-fill ${isTop?'rank1':''}" style="width:${Math.min(100,Math.max(8,pct))}%"></div>
           </div>
-          <div class="grpstat-val">${row.best}</div>
+          <div class="grpstat-val">${row.best?.toFixed(2) ?? '-'}</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -2406,6 +2474,24 @@ function renderTemplates(host) {
           <div style="flex:1"><label>Pause (s)</label>
             <input type="number" value="${ex.restSec||60}" data-exRest="${tpl.id},${i}"/></div>
         </div>
+        ${ex.type==='time' ? `
+        <div style="margin-top:8px">
+          <label style="margin-bottom:6px;display:block">⏱ Wertung bei Zeit</label>
+          <div style="display:flex;gap:8px">
+            <div data-exTimedir="${tpl.id},${i}" data-dir="asc"
+              style="flex:1;padding:10px 12px;border-radius:10px;border:2px solid ${(ex.timeDir||'desc')==='asc'?'#3b82f6':'#e5e7eb'};background:${(ex.timeDir||'desc')==='asc'?'#eff6ff':'#f8fafc'};cursor:pointer;text-align:center">
+              <div style="font-size:18px">🏃</div>
+              <div style="font-size:12px;font-weight:800;color:${(ex.timeDir||'desc')==='asc'?'#3b82f6':'#475569'};margin-top:4px">Kürzeste Zeit</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Sprint, Reaktion</div>
+            </div>
+            <div data-exTimedir="${tpl.id},${i}" data-dir="desc"
+              style="flex:1;padding:10px 12px;border-radius:10px;border:2px solid ${(ex.timeDir||'desc')==='desc'?'#3b82f6':'#e5e7eb'};background:${(ex.timeDir||'desc')==='desc'?'#eff6ff':'#f8fafc'};cursor:pointer;text-align:center">
+              <div style="font-size:18px">🏅</div>
+              <div style="font-size:12px;font-weight:800;color:${(ex.timeDir||'desc')==='desc'?'#3b82f6':'#475569'};margin-top:4px">Längste Zeit</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Ausdauer, Plank</div>
+            </div>
+          </div>
+        </div>` : ''}
         <label>Standard-Foto</label>
         <select data-exPhoto="${tpl.id},${i}">
           ${PHOTOS.map(p=>`<option value="${p.id}" ${p.id===ex.exPhotoId?'selected':''}>${p.label}</option>`).join('')}
@@ -2491,9 +2577,24 @@ function renderTemplates(host) {
   });
   $$('[data-tplName]').forEach(inp=>{inp.oninput=()=>{const t=state.templates.find(t=>t.id===inp.getAttribute('data-tplName'));if(t){t.name=inp.value;save();}};});
   $$('[data-exTitle]').forEach(inp=>{inp.oninput=()=>{const[tid,i]=inp.getAttribute('data-exTitle').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].title=inp.value;save();}};});
-  $$('[data-exType]').forEach(sel=>{sel.onchange=()=>{const[tid,i]=sel.getAttribute('data-exType').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].type=sel.value;save();}};});
+  $$('[data-exType]').forEach(sel=>{sel.onchange=()=>{
+    const[tid,i]=sel.getAttribute('data-exType').split(',');
+    const t=state.templates.find(t=>t.id===tid);
+    if(t?.exercises[i]){
+      t.exercises[i].type=sel.value;
+      // Neues timeDir setzen wenn noch nicht vorhanden
+      if(sel.value==='time' && !t.exercises[i].timeDir) t.exercises[i].timeDir='asc';
+      save(); renderTemplates(host); // Re-render um timeDir-Toggle zu zeigen/verbergen
+    }
+  };});
   $$('[data-exRest]').forEach(inp=>{inp.oninput=()=>{const[tid,i]=inp.getAttribute('data-exRest').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].restSec=parseInt(inp.value)||0;save();}};});
   $$('[data-exPhoto]').forEach(sel=>{sel.onchange=()=>{const[tid,i]=sel.getAttribute('data-exPhoto').split(',');const t=state.templates.find(t=>t.id===tid);if(t?.exercises[i]){t.exercises[i].exPhotoId=sel.value;save();}};});
+  // timeDir Toggle (Sprint = asc, Ausdauer = desc)
+  $$('[data-exTimedir]').forEach(btn=>{btn.onclick=()=>{
+    const[tid,i]=btn.getAttribute('data-exTimedir').split(',');
+    const t=state.templates.find(t=>t.id===tid);
+    if(t?.exercises[i]){ t.exercises[i].timeDir=btn.getAttribute('data-dir'); save(); renderTemplates(host); }
+  };});
   $$('[data-delEx]').forEach(btn=>{btn.onclick=()=>{const[tid,i]=btn.getAttribute('data-delEx').split(',');const t=state.templates.find(t=>t.id===tid);if(t&&t.exercises.length>1&&confirm('Übung löschen?')){t.exercises.splice(+i,1);save();renderTemplates(host);}};});
   $$('[data-addEx]').forEach(btn=>{btn.onclick=()=>{const t=state.templates.find(t=>t.id===btn.getAttribute('data-addEx'));if(t){t.exercises.push({id:'ex_'+uid(),title:'Neue Übung',type:'reps',restSec:60,hint:'',exPhotoId:'e1',customImgIds:[]});save();renderTemplates(host);}};});
   $$('[data-newTr]').forEach(btn=>{btn.onclick=()=>{createTraining(btn.getAttribute('data-newTr'));state.tab='tracking';save();render();};});
