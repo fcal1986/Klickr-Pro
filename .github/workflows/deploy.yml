@@ -1,33 +1,33 @@
 name: Deploy to GitHub Pages
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
 concurrency:
   group: pages
   cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Inject GIST_TOKEN into index.html
+        run: sed -i "s/GITHUB_TOKEN_PLACEHOLDER/${{ secrets.GIST_TOKEN }}/g" index.html
+
+      - name: Bust Service Worker cache (inject build timestamp)
         run: |
-          sed -i "s/GITHUB_TOKEN_PLACEHOLDER/${{ secrets.GIST_TOKEN }}/g" index.html
+          TS=$(date +%Y%m%d%H%M%S)
+          sed -i "s/BUILD_TIMESTAMP/${TS}/g" sw.js
+          echo "Cache key: kickr-${TS}"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
