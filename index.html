@@ -322,6 +322,26 @@
     .group-option.selected{border-color:transparent;color:#fff}
     .active-group-badge{color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;margin-left:6px;letter-spacing:.3px;flex-shrink:0}
 
+    /* ── GRUPPENSTATISTIK ── */
+    .grpstat-session-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+    .grpstat-session-card{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+    .grpstat-session-card.selected{border-color:#1e293b;box-shadow:0 4px 16px rgba(30,41,59,.2)}
+    .grpstat-session-card.selected::after{content:'✓';position:absolute;top:8px;right:10px;font-size:13px;font-weight:900;color:#1e293b}
+    .grpstat-session-name{font-weight:900;font-size:13px;margin-bottom:3px;padding-right:20px}
+    .grpstat-session-date{font-size:11px;color:#94a3b8;font-weight:600}
+    .grpstat-session-grp{display:inline-flex;align-items:center;gap:4px;margin-top:5px;padding:2px 8px;border-radius:999px}
+    .grpstat-ex-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:12px}
+    .grpstat-ex-title{font-size:15px;font-weight:900;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .grpstat-ath-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9}
+    .grpstat-ath-row:last-child{border-bottom:none}
+    .grpstat-ath-ava{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid #e5e7eb}
+    .grpstat-ath-name{flex:1;font-weight:700;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .grpstat-bar-wrap{flex:1.5;background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden}
+    .grpstat-bar-fill{height:100%;border-radius:999px;background:#3b82f6;transition:width .6s ease}
+    .grpstat-bar-fill.rank1{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+    .grpstat-val{font-size:13px;font-weight:900;min-width:40px;text-align:right;flex-shrink:0}
+    .grpstat-rank{font-size:11px;font-weight:900;color:#94a3b8;min-width:16px;text-align:center;flex-shrink:0}
+
   </style>
 </head>
 <body>
@@ -332,7 +352,7 @@
       <h1 id="title">⚡ Kickr Training PRO</h1>
       <div class="sub" id="subtitle">Lade...</div>
     </div>
-    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.7</span>
+    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.8</span>
   </div>
 </header>
 
@@ -446,7 +466,7 @@ const GROUP_COLORS = [
   { id:'teal',   hex:'#14b8a6', light:'#ccfbf1' },
 ];
 
-const APP_VERSION = '5.7';
+const APP_VERSION = '5.8';
 
 // ================================================================
 // IMAGE STORAGE – separate IndexedDB for blobs (no quota clash)
@@ -1366,94 +1386,140 @@ async function deleteExPhoto(tplId, exId, imgId) {
 }
 
 // ================================================================
-// ATHLETEN ZUR BAR HINZUFÜGEN (Modal)
+// ATHLETEN ZUR BAR HINZUFÜGEN (Modal — Multi-Select)
 // ================================================================
-let _addAthSelected = null; // 'new' | athId
+let _addAthSelectedIds = new Set(); // Set von athIds
+let _addAthNewMode     = false;
 
 function openAddAthModal() {
-  const curTr    = state.trainings.find(t => t.id === state.trainId);
-  const curGroup = curTr?.groupId ? state.groups.find(g => g.id === curTr.groupId) : null;
+  _addAthSelectedIds.clear();
+  _addAthNewMode = false;
 
-  // Athleten die noch NICHT in der aktiven Bar sind
-  const missing = state.athletes.filter(a => !state.activeIds.includes(a.id));
-  _addAthSelected = null;
+  const missing = [...state.athletes]
+    .filter(a => !state.activeIds.includes(a.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const optionsDiv = $('addAthOptions');
+  const confirmBtn = $('confirmAddAth');
+
+  function updateConfirmBtn() {
+    const n = _addAthSelectedIds.size;
+    const newMode = _addAthNewMode;
+    if (newMode) {
+      confirmBtn.textContent = '➕ Neuen Athleten erstellen';
+      confirmBtn.disabled = false;
+    } else if (n > 0) {
+      confirmBtn.textContent = `${n} Athlet${n>1?'en':''} hinzufügen`;
+      confirmBtn.disabled = false;
+    } else {
+      confirmBtn.textContent = 'Auswahl treffen';
+      confirmBtn.disabled = true;
+    }
+  }
+
   optionsDiv.innerHTML = `
-    <!-- Option A: Bestehenden Athleten hinzufügen -->
     ${missing.length > 0 ? `
-      <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
-        Bestehenden Athleten hinzufügen
+      <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+        Bestehende Athleten hinzufügen
       </div>
-      ${missing.map(a => {
-        const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
-        return `<div class="tpl-option" data-add-existing="${a.id}" style="gap:12px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <img src="${src}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0"/>
-            <span style="font-weight:800">${esc(a.name)}</span>
-          </div>
-          <span style="font-size:18px">👤</span>
-        </div>`;
-      }).join('')}
+      <div id="missingAthList">
+        ${missing.map(a => {
+          const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
+          return `<div class="tpl-option" data-add-existing="${a.id}" style="gap:12px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:10px;flex:1">
+              <img src="${src}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0"/>
+              <span style="font-weight:800;font-size:14px">${esc(a.name)}</span>
+            </div>
+            <div style="width:22px;height:22px;border-radius:50%;border:2px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0" data-check="${a.id}"></div>
+          </div>`;
+        }).join('')}
+      </div>
       <div style="height:1px;background:#e5e7eb;margin:14px 0"></div>
-    ` : `<div style="font-size:13px;color:#94a3b8;margin-bottom:12px">Alle Athleten sind bereits in der Liste.</div>`}
-    <!-- Option B: Neuen Athleten erstellen -->
-    <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+    ` : `<div style="font-size:13px;color:#94a3b8;padding:8px 0 12px">Alle Athleten sind bereits in der Liste.</div>`}
+    <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
       Neuen Athleten erstellen
     </div>
     <div class="tpl-option" data-add-new="1">
-      <div><div class="tpl-name">Neuer Athlet</div><div class="tpl-info">Namen eingeben</div></div>
-      <span style="font-size:24px">➕</span>
+      <div><div class="tpl-name">Neuer Athlet</div><div class="tpl-info">Namen und Daten eingeben</div></div>
+      <span style="font-size:22px">➕</span>
     </div>
   `;
 
-  // Auswahl-Logik
-  optionsDiv.querySelectorAll('[data-add-existing],[data-add-new]').forEach(opt => {
+  // Existing athlete toggle (multi-select)
+  optionsDiv.querySelectorAll('[data-add-existing]').forEach(opt => {
     opt.onclick = () => {
-      optionsDiv.querySelectorAll('.tpl-option').forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-      _addAthSelected = opt.dataset.addExisting || 'new';
+      _addAthNewMode = false;
+      // Deselect "Neu" option
+      optionsDiv.querySelector('[data-add-new]')?.classList.remove('selected');
+      const aid = opt.dataset.addExisting;
+      const checkEl = opt.querySelector(`[data-check="${aid}"]`);
+      if (_addAthSelectedIds.has(aid)) {
+        _addAthSelectedIds.delete(aid);
+        opt.classList.remove('selected');
+        if (checkEl) { checkEl.textContent = ''; checkEl.style.borderColor = '#e5e7eb'; checkEl.style.background = ''; }
+      } else {
+        _addAthSelectedIds.add(aid);
+        opt.classList.add('selected');
+        if (checkEl) { checkEl.textContent = '✓'; checkEl.style.borderColor = '#3b82f6'; checkEl.style.background = '#3b82f6'; checkEl.style.color = '#fff'; }
+      }
+      updateConfirmBtn();
     };
   });
 
+  // New athlete option
+  const newOpt = optionsDiv.querySelector('[data-add-new]');
+  if (newOpt) newOpt.onclick = () => {
+    _addAthSelectedIds.clear();
+    // Reset all existing selections
+    optionsDiv.querySelectorAll('[data-add-existing]').forEach(o => {
+      o.classList.remove('selected');
+      const aid = o.dataset.addExisting;
+      const ch = o.querySelector(`[data-check="${aid}"]`);
+      if (ch) { ch.textContent = ''; ch.style.borderColor = '#e5e7eb'; ch.style.background = ''; }
+    });
+    _addAthNewMode = true;
+    newOpt.classList.add('selected');
+    updateConfirmBtn();
+  };
+
+  updateConfirmBtn();
   $('addAthModal').classList.add('show');
 }
 
 function closeAddAthModal() {
   $('addAthModal').classList.remove('show');
-  _addAthSelected = null;
+  _addAthSelectedIds.clear();
+  _addAthNewMode = false;
 }
 
-// Modal-Buttons binden (einmalig nach DOM-Ready)
 function bindAddAthModal() {
   $('closeAddAthModal').onclick = closeAddAthModal;
   $('addAthModal').onclick = e => { if (e.target.id === 'addAthModal') closeAddAthModal(); };
 
   $('confirmAddAth').onclick = () => {
-    if (!_addAthSelected) return alert('Bitte eine Option wählen.');
-
     const curTr    = state.trainings.find(t => t.id === state.trainId);
     const curGroup = curTr?.groupId ? state.groups.find(g => g.id === curTr.groupId) : null;
 
-    if (_addAthSelected === 'new') {
+    if (_addAthNewMode) {
       const name = prompt('Name des neuen Athleten:'); if (!name?.trim()) return;
       const a = { id: 'ath_'+uid(), name: name.trim(), photo: '', photoId: '' };
       state.athletes.push(a);
       state.activeIds.push(a.id);
-      // Auch zur aktuellen Gruppe hinzufügen wenn vorhanden
-      if (curGroup) curGroup.athleteIds.push(a.id);
+      if (curGroup && !curGroup.athleteIds.includes(a.id)) curGroup.athleteIds.push(a.id);
       save(); closeAddAthModal(); render();
       showToast('✅ ' + a.name + ' angelegt und hinzugefügt');
-    } else {
-      // Bestehenden hinzufügen
-      const a = state.athletes.find(x => x.id === _addAthSelected);
-      if (!a) return;
-      if (!state.activeIds.includes(a.id)) state.activeIds.push(a.id);
-      // Auch zur aktuellen Gruppe hinzufügen
-      if (curGroup && !curGroup.athleteIds.includes(a.id)) curGroup.athleteIds.push(a.id);
-      state.athId = a.id;
+    } else if (_addAthSelectedIds.size > 0) {
+      let names = [];
+      _addAthSelectedIds.forEach(aid => {
+        const a = state.athletes.find(x => x.id === aid);
+        if (!a) return;
+        if (!state.activeIds.includes(aid)) state.activeIds.push(aid);
+        if (curGroup && !curGroup.athleteIds.includes(aid)) curGroup.athleteIds.push(aid);
+        names.push(a.name);
+      });
+      state.athId = [..._addAthSelectedIds][0];
       save(); closeAddAthModal(); render();
-      showToast('✅ ' + a.name + ' hinzugefügt');
+      showToast(`✅ ${names.join(', ')} hinzugefügt`);
     }
   };
 }
@@ -1548,8 +1614,14 @@ function render() {
     // Header 54px + (Gruppen-Zeile ~26px wenn vorhanden) + Avatar-Zeile ~72px + 4px Luft
     document.documentElement.style.setProperty('--main-top', showGroupRow ? '154px' : '128px');
 
-    // Avatar-Zeile
-    const avatarsHtml = state.activeIds.map(aid => {
+    // Avatar-Zeile — alphabetisch sortiert
+    const sortedActiveIds = [...state.activeIds].sort((a, b) => {
+      const na = state.athletes.find(x=>x.id===a)?.name || '';
+      const nb = state.athletes.find(x=>x.id===b)?.name || '';
+      return na.localeCompare(nb);
+    });
+
+    const avatarsHtml = sortedActiveIds.map(aid => {
       const a = state.athletes.find(x=>x.id===aid); if(!a) return '';
       const src = _imgCache.get(a.photoId) || a.photo || DEFAULT_AVATAR;
       return `<div class="ath ${a.id===state.athId?'active':''}" data-ath="${a.id}" draggable="true" data-ath-drag="${a.id}" style="cursor:grab">
@@ -1930,19 +2002,20 @@ function showUndo() {
 // ================================================================
 // RENDER STATS (original logic, adds cached bench avatars)
 // ================================================================
-let _statsTab    = 'training'; // 'training' | 'team'
-let _statsPeriod = 7;          // 7 | 30 | 60
+let _statsTab      = 'training'; // 'training' | 'group'
+let _statsPeriod   = 7;
+let _grpStatTrId   = '';         // ausgewähltes Training in Gruppenstatistik ('' = alle)
 
 async function renderStats(host) {
   host.innerHTML = '';
 
-  // ── CoachOS Header: Tab Toggle + Period Bar ──
+  // ── Tab Toggle ──
   const headerDiv = document.createElement('div');
   headerDiv.style.cssText = 'padding:16px 0 0';
   headerDiv.innerHTML = `
     <div class="stats-tab-toggle">
-      <button class="stats-tab-btn ${_statsTab==='training'?'active':''}" id="stTabTrain">Trainingstatistik</button>
-      <button class="stats-tab-btn ${_statsTab==='team'?'active':''}" id="stTabTeam">Teamstatistik</button>
+      <button class="stats-tab-btn ${_statsTab==='training'?'active':''}" id="stTabTrain">Mein Training</button>
+      <button class="stats-tab-btn ${_statsTab==='group'?'active':''}" id="stTabTeam">Gruppenstatistik</button>
     </div>
     <div class="stats-period-bar">
       ${[7,30,60].map(d=>`<button class="stats-period-btn ${_statsPeriod===d?'active':''}" data-period="${d}">${d} Tage</button>`).join('')}
@@ -1950,7 +2023,7 @@ async function renderStats(host) {
   host.appendChild(headerDiv);
 
   headerDiv.querySelector('#stTabTrain').onclick = () => { _statsTab='training'; renderStats(host); };
-  headerDiv.querySelector('#stTabTeam').onclick  = () => { _statsTab='team';     renderStats(host); };
+  headerDiv.querySelector('#stTabTeam').onclick  = () => { _statsTab='group';   renderStats(host); };
   headerDiv.querySelectorAll('[data-period]').forEach(btn => {
     btn.onclick = () => { _statsPeriod = +btn.dataset.period; renderStats(host); };
   });
@@ -1959,25 +2032,21 @@ async function renderStats(host) {
   cutoff.setDate(cutoff.getDate() - _statsPeriod);
   cutoff.setHours(0,0,0,0);
 
-  if (_statsTab === 'team') {
-    // Team: Kalender + Leaderboard
-    const calDiv = document.createElement('div');
-    const lbDiv  = document.createElement('div');
-    host.appendChild(calDiv);
-    host.appendChild(lbDiv);
-    renderCalendar(calDiv);
-    await renderLeaderboard(lbDiv);
+  // ════════════════════════════════════════════
+  if (_statsTab === 'group') {
+    await renderGroupStats(host, cutoff);
     return;
   }
 
-  // Training stats: per-athlete in selected period
+  // ════════════════════════════════════════════
+  // Mein Training (Einzel-Athlet)
   const ath = state.athletes.find(a=>a.id===state.athId);
   if (!ath) return;
 
   const data = { total:0, trainings:0, exercises:{} };
   state.trainings.forEach(tr => {
     if (!tr.exercises || !Array.isArray(tr.exercises)) return;
-    if (tr.date && new Date(tr.date+'T12:00') < cutoff) return; // period filter
+    if (tr.date && new Date(tr.date+'T12:00') < cutoff) return;
     let hasData = false;
     tr.exercises.forEach(ex => {
       if (!ex?.id) return;
@@ -2054,6 +2123,226 @@ async function renderStats(host) {
       new Chart(canvas,{type:'line',data:{labels:stats.records.map(r=>fmtDate(r.trDate)),datasets:[{label:exTitle,data:stats.records.map(r=>r.value),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',tension:.4,fill:true,pointRadius:6,pointBackgroundColor:'#3b82f6',pointBorderColor:'#fff',pointBorderWidth:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#e5e7eb'}},x:{grid:{display:false}}}}});
     });
   },100);
+}
+
+// ================================================================
+// GRUPPENSTATISTIK
+// ================================================================
+async function renderGroupStats(host, cutoff) {
+  await _preloadRankedThumbs();
+
+  // Trainings im Zeitraum — nur die mit Gruppen-Bezug
+  const recentTrs = state.trainings
+    .filter(t => !cutoff || !t.date || new Date(t.date+'T12:00') >= cutoff)
+    .sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  const grpTrs = recentTrs.filter(t => t.groupId && state.groups.find(g=>g.id===t.groupId));
+  const noGrpTrs = recentTrs.filter(t => !t.groupId);
+  const allShown = [...grpTrs, ...noGrpTrs]; // Gruppen-Trainings zuerst
+
+  // Aktuell ausgewähltes Training validieren
+  if (_grpStatTrId && !allShown.find(t=>t.id===_grpStatTrId)) _grpStatTrId = '';
+
+  const selTr = _grpStatTrId ? allShown.find(t=>t.id===_grpStatTrId) : null;
+
+  // Athleten-Pool: wenn Training gewählt → Gruppe des Trainings; sonst alle
+  let poolAthletes = state.athletes;
+  let poolLabel    = 'Alle Athleten';
+  let poolColor    = null;
+  if (selTr?.groupId) {
+    const g = state.groups.find(x=>x.id===selTr.groupId);
+    if (g) {
+      poolAthletes = g.athleteIds.map(id=>state.athletes.find(a=>a.id===id)).filter(Boolean);
+      poolLabel    = g.name;
+      poolColor    = groupColor(g.colorId);
+    }
+  }
+
+  // ── Trainings-Auswahl Kacheln ──
+  const wrapper = document.createElement('div');
+
+  // Header mit Kontext-Info
+  wrapper.innerHTML = `
+    <div class="card" style="padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:17px;font-weight:900">Gruppenstatistik</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+            ${selTr
+              ? `${poolAthletes.length} Athleten · ${esc(selTr.tplName)} · ${fmtDate(selTr.date)}`
+              : `Alle Trainings der letzten ${_statsPeriod} Tage`}
+          </div>
+        </div>
+        ${poolColor ? `<div style="display:flex;align-items:center;gap:6px;background:${poolColor.hex}18;border:1.5px solid ${poolColor.hex}50;padding:5px 12px;border-radius:999px">
+          <div style="width:8px;height:8px;border-radius:50%;background:${poolColor.hex}"></div>
+          <span style="font-size:12px;font-weight:800;color:${poolColor.hex}">${esc(poolLabel)}</span>
+        </div>` : ''}
+      </div>
+
+      <!-- Training Kacheln -->
+      <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+        Training auswählen
+      </div>
+      <div class="grpstat-session-grid">
+        <!-- Alle-Kachel -->
+        <div class="grpstat-session-card ${!_grpStatTrId?'selected':''}" data-grpstat-tr="">
+          <div class="grpstat-session-name">Alle anzeigen</div>
+          <div class="grpstat-session-date">${allShown.length} Trainings</div>
+          <div class="grpstat-session-grp" style="background:#1e293b18">
+            <span style="font-size:10px;font-weight:800;color:#1e293b">Gesamt</span>
+          </div>
+        </div>
+        ${allShown.slice(0,9).map(t => {
+          const g = t.groupId ? state.groups.find(x=>x.id===t.groupId) : null;
+          const col = g ? groupColor(g.colorId) : null;
+          return `<div class="grpstat-session-card ${_grpStatTrId===t.id?'selected':''}" data-grpstat-tr="${t.id}">
+            <div class="grpstat-session-name">${esc(t.tplName)}</div>
+            <div class="grpstat-session-date">${fmtDate(t.date)}</div>
+            ${g ? `<div class="grpstat-session-grp" style="background:${col.hex}18;border:1px solid ${col.hex}40">
+              <div style="width:6px;height:6px;border-radius:50%;background:${col.hex};flex-shrink:0"></div>
+              <span style="font-size:10px;font-weight:800;color:${col.hex}">${esc(g.name)}</span>
+            </div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  // Training-Kachel Klick-Handler
+  wrapper.querySelectorAll('[data-grpstat-tr]').forEach(card => {
+    card.onclick = () => {
+      _grpStatTrId = card.getAttribute('data-grpstat-tr');
+      renderGroupStats(host, cutoff);
+    };
+  });
+  host.appendChild(wrapper);
+
+  // ── Leaderboard ──
+  const lbDiv = document.createElement('div');
+  host.appendChild(lbDiv);
+
+  // Leaderboard berechnen: Trainingsanzahl der Pool-Athleten
+  // Wenn Training gewählt → nur dieses Training; sonst alle im Zeitraum
+  const trainingsForLb = selTr ? [selTr] : allShown;
+  const ranked = poolAthletes.map(ath => {
+    let sessionCount = 0;
+    trainingsForLb.forEach(tr => {
+      const hasData = tr.exercises?.some(ex => (tr.records?.[`${ath.id}_${ex.id}`]||[]).length > 0);
+      if (hasData) sessionCount++;
+    });
+    return { ath, sessionCount };
+  }).filter(x => x.sessionCount > 0).sort((a,b) => b.sessionCount - a.sessionCount);
+
+  if (!ranked.length) {
+    lbDiv.innerHTML = `<div class="leaderboard-wrap">
+      <div class="leaderboard-title" style="font-size:18px">Leaderboard</div>
+      <div class="stats-empty" style="padding:30px 0">
+        <div class="stats-empty-icon">🏆</div>
+        <div class="stats-empty-title" style="font-size:18px">Noch keine Einträge</div>
+        <div class="stats-empty-sub">Erfasse Trainings um das Leaderboard zu füllen</div>
+      </div>
+    </div>`;
+  } else {
+    const lbTitle = selTr
+      ? `Leaderboard · ${esc(selTr.tplName)}`
+      : `Leaderboard · ${_statsPeriod} Tage`;
+
+    const podiumHtml = [
+      _podiumCard(ranked[1]||null, 'silver'),
+      _podiumCard(ranked[0]||null, 'gold'),
+      _podiumCard(ranked[2]||null, 'bronze'),
+    ].join('');
+
+    const listHtml = ranked.slice(3).map((entry,idx) => {
+      const thumb = _imgCache.get(entry.ath.photoId);
+      return `<div class="lb-list-item">
+        <div class="lb-list-rank">${idx+4}</div>
+        <div class="lb-list-ava-wrap">
+          ${thumb?`<img class="lb-list-ava" src="${thumb}"/>`:`<div class="lb-list-sil"></div>`}
+        </div>
+        <div class="lb-list-name">${esc(entry.ath.name)}</div>
+        <div class="lb-list-val">${entry.sessionCount} Tr.</div>
+      </div>`;
+    }).join('');
+
+    lbDiv.innerHTML = `<div class="leaderboard-wrap">
+      <div class="leaderboard-title" style="font-size:18px">${lbTitle}</div>
+      <div class="lb-podium">${podiumHtml}</div>
+      ${listHtml}
+    </div>`;
+  }
+
+  // ── Übungsstatistik der Gruppe ──
+  // Alle Übungen aus den relevanten Trainings sammeln
+  const exStats = {}; // exTitle → { athletes: { athId → { best, avg, vals[] } } }
+  const trsForEx = selTr ? [selTr] : allShown;
+
+  trsForEx.forEach(tr => {
+    tr.exercises?.forEach(ex => {
+      if (!ex?.title) return;
+      poolAthletes.forEach(ath => {
+        const recs = tr.records?.[`${ath.id}_${ex.id}`] || [];
+        recs.forEach(r => {
+          let v = 0;
+          if (ex.type==='lr') v = (parseFloat(r.left)||0)+(parseFloat(r.right)||0);
+          else v = parseFloat(r.value)||0;
+          if (!v) return;
+          if (!exStats[ex.title]) exStats[ex.title] = { type: ex.type, athletes: {} };
+          if (!exStats[ex.title].athletes[ath.id]) exStats[ex.title].athletes[ath.id] = { ath, vals: [] };
+          exStats[ex.title].athletes[ath.id].vals.push(v);
+        });
+      });
+    });
+  });
+
+  const exTitles = Object.keys(exStats);
+  if (!exTitles.length) return;
+
+  const exSection = document.createElement('div');
+  let exHtml = `<div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 12px">Übungsvergleich</div>`;
+
+  exTitles.forEach(exTitle => {
+    const ex = exStats[exTitle];
+    // Alle Athleten mit Werten — sortiert nach Best-Wert
+    const athRows = Object.values(ex.athletes).map(({ ath, vals }) => ({
+      ath,
+      best: Math.max(...vals),
+      avg:  Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10,
+      count: vals.length,
+    })).sort((a,b) => b.best - a.best);
+
+    if (!athRows.length) return;
+    const maxVal = athRows[0].best;
+
+    exHtml += `<div class="grpstat-ex-card">
+      <div class="grpstat-ex-title">
+        <span>💪</span> ${esc(exTitle)}
+        <span style="margin-left:auto;font-size:12px;font-weight:600;color:#94a3b8">${athRows.length} Athleten</span>
+      </div>
+      ${athRows.map((row, idx) => {
+        const thumb = _imgCache.get(row.ath.photoId) || row.ath.photo || DEFAULT_AVATAR;
+        const pct   = maxVal > 0 ? Math.round((row.best / maxVal) * 100) : 0;
+        const isTop = idx === 0;
+        return `<div class="grpstat-ath-row">
+          <div class="grpstat-rank">${idx+1}</div>
+          <img class="grpstat-ath-ava" src="${thumb}" data-lazy-grpex="${row.ath.photoId||''}"/>
+          <div class="grpstat-ath-name">${esc(row.ath.name)}</div>
+          <div class="grpstat-bar-wrap">
+            <div class="grpstat-bar-fill ${isTop?'rank1':''}" style="width:${pct}%"></div>
+          </div>
+          <div class="grpstat-val">${row.best}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+
+  exSection.innerHTML = exHtml;
+  host.appendChild(exSection);
+
+  // Lazy-load Gruppenstatistik-Avatare
+  exSection.querySelectorAll('[data-lazy-grpex]').forEach(async img => {
+    const id = img.getAttribute('data-lazy-grpex');
+    if (id && !_imgCache.has(id)) { const src = await cachedThumb(id); if(src) img.src=src; }
+  });
 }
 
 // ================================================================
