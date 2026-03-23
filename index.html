@@ -360,7 +360,7 @@
       <h1 id="title">⚡ Kickr Training PRO</h1>
       <div class="sub" id="subtitle">Lade...</div>
     </div>
-    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v6.0</span>
+    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v6.1</span>
   </div>
 </header>
 
@@ -474,7 +474,7 @@ const GROUP_COLORS = [
   { id:'teal',   hex:'#14b8a6', light:'#ccfbf1' },
 ];
 
-const APP_VERSION = '6.0';
+const APP_VERSION = '6.1';
 
 /**
  * Gibt den "besten" Wert zurück abhängig von timeDir.
@@ -1765,7 +1765,15 @@ function render() {
       el.addEventListener('pointerleave', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
       el.onclick = () => {
         if (aid !== state.athId) { _timer.reset(); _timer.exKey = ''; }
+        // Scroll-Position der Athleten-Bar sichern
+        const athBar = document.querySelector('.athletes-avatar-row');
+        const savedAthScroll = athBar ? athBar.scrollLeft : 0;
         state.athId = aid; save(); render();
+        // Nach render() wiederherstellen
+        requestAnimationFrame(() => {
+          const newAthBar = document.querySelector('.athletes-avatar-row');
+          if (newAthBar) newAthBar.scrollLeft = savedAthScroll;
+        });
       };
     });
 
