@@ -31,7 +31,7 @@
     .ath img{width:48px;height:48px;border-radius:50%;border:3px solid #e5e7eb;margin-bottom:4px;object-fit:cover;display:block;margin-left:auto;margin-right:auto}
     .ath.active img{border-color:#10b981}
     .ath-name{font-size:10px;font-weight:700;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    main{max-width:1100px;margin:0 auto;padding:16px;padding-top:138px;padding-bottom:100px}
+    main{max-width:1100px;margin:0 auto;padding:16px;padding-top:var(--main-top,138px);padding-bottom:100px}
     .card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px}
     button{background:#3b82f6;color:#fff;border:none;padding:12px 20px;border-radius:12px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;transition:transform .2s;min-height:48px;font-size:15px}
     button:active{transform:scale(.97)}
@@ -332,7 +332,7 @@
       <h1 id="title">⚡ Kickr Training PRO</h1>
       <div class="sub" id="subtitle">Lade...</div>
     </div>
-    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.6</span>
+    <span style="background:#3b82f6;color:#fff;font-size:10px;font-weight:900;padding:3px 9px;border-radius:999px;margin-top:4px;flex-shrink:0;letter-spacing:.4px">v5.7</span>
   </div>
 </header>
 
@@ -446,7 +446,7 @@ const GROUP_COLORS = [
   { id:'teal',   hex:'#14b8a6', light:'#ccfbf1' },
 ];
 
-const APP_VERSION = '5.6';
+const APP_VERSION = '5.7';
 
 // ================================================================
 // IMAGE STORAGE – separate IndexedDB for blobs (no quota clash)
@@ -947,44 +947,6 @@ function activateAllAthletes() {
 }
 
 /** Rendert das Gruppen-Badge in der Athleten-Bar (sticky links, kein Klick-Verschwinden) */
-function renderGroupBadge(athDiv) {
-  const g = state.groups.find(x => x.id === state.activeGroupId);
-  // Auch ohne aktive Gruppe zeigen wir eine "Alle"-Pill wenn Gruppen existieren
-  if (!state.groups.length) return;
-
-  const col = g ? groupColor(g.colorId) : null;
-  const badge = document.createElement('div');
-  badge.style.cssText = `
-    display:flex;align-items:center;gap:5px;
-    padding:4px 10px 4px 8px;border-radius:999px;
-    background:${g ? col.hex : '#1e293b'};
-    margin-right:4px;flex-shrink:0;cursor:pointer;
-    position:sticky;left:0;z-index:10;
-    box-shadow:3px 0 8px rgba(255,255,255,.9);
-  `;
-  badge.title = g ? `Gruppe: ${g.name} — tippe für alle` : 'Alle Athleten';
-  badge.innerHTML = `
-    <span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.65);flex-shrink:0"></span>
-    <span style="font-size:10px;font-weight:900;color:#fff;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis">
-      ${g ? esc(g.name) : 'Alle'}
-    </span>
-  `;
-  // Klick: Toggle zwischen Gruppe und Alle — Gruppe verschwindet NICHT
-  badge.onclick = (e) => {
-    e.stopPropagation();
-    if (g) {
-      // Nur auf "Alle" umschalten, Gruppe bleibt erhalten
-      activateAllAthletes();
-    } else if (state.groups.length) {
-      // Zurück zur zuletzt aktiven Gruppe (oder erste)
-      const lastGrp = state.groups[0];
-      if (lastGrp) activateGroup(lastGrp.id);
-    }
-    render();
-  };
-  athDiv.prepend(badge);
-}
-
 // ================================================================
 // v5.2 – LEADERBOARD (CoachOS exakt)
 // ================================================================
@@ -1564,13 +1526,14 @@ function render() {
   if (state.tab==='tracking' || state.tab==='statistics' || state.tab==='duel') {
     athDiv.style.display = 'block';
 
-    // Gruppe vom aktuellen Training lesen (nicht aus activeGroupId)
+    // Gruppe vom aktuellen Training lesen
     const curTr = state.trainings.find(t => t.id === state.trainId);
     const curGroup = curTr?.groupId ? state.groups.find(g => g.id === curTr.groupId) : null;
     const curCol = curGroup ? groupColor(curGroup.colorId) : null;
 
     // Gruppen-Label-Zeile (nur wenn Gruppen vorhanden)
-    const groupRowHtml = state.groups.length > 0 ? `
+    const showGroupRow = state.groups.length > 0;
+    const groupRowHtml = showGroupRow ? `
       <div class="athletes-group-row">
         ${curGroup
           ? `<div class="athletes-group-dot" style="background:${curCol.hex}"></div>
@@ -1580,6 +1543,10 @@ function render() {
              <span style="font-size:10px;color:#94a3b8;margin-left:auto;flex-shrink:0">${state.activeIds.length} Athleten</span>`
         }
       </div>` : '';
+
+    // padding-top für main dynamisch setzen:
+    // Header 54px + (Gruppen-Zeile ~26px wenn vorhanden) + Avatar-Zeile ~72px + 4px Luft
+    document.documentElement.style.setProperty('--main-top', showGroupRow ? '154px' : '128px');
 
     // Avatar-Zeile
     const avatarsHtml = state.activeIds.map(aid => {
@@ -1637,6 +1604,7 @@ function render() {
     });
   } else {
     athDiv.style.display = 'none';
+    document.documentElement.style.setProperty('--main-top', '74px');
   }
 
   const main=$('main'), title=$('title'), sub=$('subtitle');
@@ -1862,16 +1830,34 @@ function renderTracking(host) {
   $$('[data-tr]').forEach(el => {
     el.onclick = e => {
       if (e.target.closest('.del-btn')) return;
-      // Scroll-Position merken bevor render() den DOM neu aufbaut
       const scrollRow = el.closest('.scroll-row');
       const savedScrollLeft = scrollRow ? scrollRow.scrollLeft : 0;
 
       state.trainId = el.getAttribute('data-tr');
       const t = state.trainings.find(x=>x.id===state.trainId);
-      if (t) state.exId = t.exercises[0]?.id||'';
+      if (!t) return;
+      state.exId = t.exercises[0]?.id || '';
+
+      // Athleten-Bar aus Training-Gruppe aktualisieren
+      if (t.groupId) {
+        const g = state.groups.find(x => x.id === t.groupId);
+        if (g) {
+          const validIds = g.athleteIds.filter(id => state.athletes.find(a => a.id === id));
+          if (validIds.length) {
+            state.activeGroupId = g.id;
+            state.activeIds     = validIds;
+            state.athId         = validIds.includes(state.athId) ? state.athId : validIds[0];
+          }
+        }
+      } else {
+        // Kein Gruppen-Filter → alle Athleten
+        state.activeGroupId = '';
+        state.activeIds     = state.athletes.map(a => a.id);
+        if (!state.activeIds.includes(state.athId)) state.athId = state.activeIds[0] || '';
+      }
+
       save(); render();
 
-      // Scroll-Position nach render() wiederherstellen
       requestAnimationFrame(() => {
         const newScrollRow = document.querySelector('.scroll-row');
         if (newScrollRow) newScrollRow.scrollLeft = savedScrollLeft;
